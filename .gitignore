@@ -1,8 +1,33 @@
+
+# Python virtual environment
 .venv/
 venv/
+env/
+
+# Python cache
 __pycache__/
-.pytest_cache/
 *.py[cod]
-.env
-instance/*.sqlite3
-instance/*.db
+.pytest_cache/
+
+# Environment variables and secrets
+.env*
+!.env.example
+
+# Local database and instance data
+instance/
+*.sqlite
+*.sqlite3
+*.db
+*.sqlite-*
+*.db-*
+
+# Test and coverage artifacts
+.coverage
+htmlcov/
+
+# Logs
+*.log
+
+# Operating system files
+.DS_Store
+Thumbs.db
