@@ -64,3 +64,18 @@ Database lokal dibuat otomatis di `instance/currycoach.sqlite3`. Database tidak 
 - Grafik dibuat dengan HTML/CSS dan JavaScript tanpa dependensi chart eksternal.
 - Font Google Fonts memerlukan koneksi internet; fallback font sistem akan digunakan jika tidak tersedia.
 - Untuk deployment, set `APP_ENV=production`, gunakan `SECRET_KEY` dan `ADMIN_KEY` yang kuat, aktifkan HTTPS dan `SESSION_COOKIE_SECURE=1`, serta gunakan server WSGI produksi. Aplikasi menolak startup production jika `SECRET_KEY` atau `ADMIN_KEY` belum diatur. Jangan aktifkan Flask debug mode.
+
+## Tahap 5 — Deployment dan laporan akhir
+
+- `wsgi.py`: entry point untuk server WSGI.
+- Waitress ditambahkan sebagai server WSGI yang dapat dijalankan di Windows.
+- `DEPLOYMENT.md`: panduan server lokal/WSGI, konfigurasi production, dan catatan persistensi SQLite.
+- `TEMPLATE-LAPORAN-AKHIR.md`: kerangka laporan yang harus diisi dengan bukti aktual.
+
+Contoh menjalankan WSGI di Windows (set environment variables production terlebih dahulu):
+
+```powershell
+waitress-serve --listen=127.0.0.1:8000 wsgi:app
+```
+
+Jangan menyatakan aplikasi telah online sebelum deployment dan pengujian URL publik benar-benar dilakukan.
