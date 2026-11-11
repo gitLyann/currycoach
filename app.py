@@ -63,11 +63,20 @@ def validasi_tema(tema: dict) -> list:
 def create_app(test_config: dict | None = None) -> Flask:
     """Application factory agar konfigurasi dan database mudah diuji."""
     app = Flask(__name__)
+    app_env = os.getenv("APP_ENV", "development").strip().lower()
+    secret_key = os.getenv("SECRET_KEY", "")
+    admin_key = os.getenv("ADMIN_KEY", "")
+    if app_env == "production":
+        if not secret_key or secret_key.startswith("ganti-dengan"):
+            raise RuntimeError("SECRET_KEY wajib diatur dengan nilai acak yang kuat di production.")
+        if not admin_key or admin_key.startswith("ganti-dengan"):
+            raise RuntimeError("ADMIN_KEY wajib diatur dengan nilai acak yang kuat di production.")
+
     app.config.from_mapping(
-        SECRET_KEY=os.getenv("SECRET_KEY", "dev-only-change-this-secret"),
+        SECRET_KEY=secret_key or "dev-only-change-this-secret",
         DATABASE=os.getenv("DATABASE", str(BASE / "instance" / "currycoach.sqlite3")),
         THRESHOLD=float(os.getenv("THRESHOLD", str(DEFAULT_THRESHOLD))),
-        ADMIN_KEY=os.getenv("ADMIN_KEY", ""),
+        ADMIN_KEY=admin_key,
         MAX_CONTENT_LENGTH=16 * 1024,
         JSON_SORT_KEYS=False,
         SESSION_COOKIE_HTTPONLY=True,

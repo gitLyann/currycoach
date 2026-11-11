@@ -84,3 +84,11 @@ def test_chat_page_includes_explain_mode_and_clear_history_controls(client):
     html = client.get("/").get_data(as_text=True)
     assert 'id="explain-mode"' in html
     assert 'id="clear-history"' in html
+
+
+def test_production_requires_secret_and_admin_key(tmp_path, monkeypatch):
+    monkeypatch.setenv("APP_ENV", "production")
+    monkeypatch.delenv("SECRET_KEY", raising=False)
+    monkeypatch.delenv("ADMIN_KEY", raising=False)
+    with pytest.raises(RuntimeError, match="SECRET_KEY wajib"):
+        create_app({"TESTING": True, "DATABASE": str(tmp_path / "prod.sqlite3")})

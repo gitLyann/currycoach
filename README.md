@@ -1,4 +1,4 @@
-# CurryCoach — Tahap 3: UI dan Admin Dashboard
+# CurryCoach — Tahap 4: Pengujian, Evaluasi, dan Keamanan
 
 CurryCoach adalah chatbot edukasi basket untuk pemula. Tahap ini memperbarui antarmuka chat dan menambahkan dashboard admin berbasis data SQLite, tanpa mengganti mesin chatbot maupun API pada Tahap 2.
 
@@ -41,11 +41,21 @@ Jika `ADMIN_KEY` disetel, masukkan nilai yang sama pada halaman Admin Dashboard.
 
 Seluruh endpoint Tahap 2 dipertahankan: `/chat`, `/api/chat`, `/api/explain`, `/api/history/<theme>`, `/api/stats/<theme>`, `/api/themes`, dan `/api/health`. Halaman baru `/admin` hanya menyajikan antarmuka; proteksi data statistik tetap berada pada endpoint API.
 
-## Pengujian
+## Pengujian dan evaluasi Tahap 4
+
+Jalankan seluruh tes otomatis:
 
 ```powershell
-pytest -v
+python -m pytest -v
 ```
+
+Jalankan evaluasi dataset secara terpisah (tidak perlu menyalakan server Flask):
+
+```powershell
+python evaluate.py
+```
+
+Dataset evaluasi berisi minimal 20 contoh kalimat dan minimal 4 pertanyaan di luar topik basket yang diharapkan masuk ke `fallback`. Akurasi adalah proporsi prediksi intent yang sama dengan label harapan pada dataset tersebut. Hasil evaluasi bukan jaminan akurasi untuk semua pertanyaan pengguna; tambahkan data uji baru dari hasil uji pengguna.
 
 Database lokal dibuat otomatis di `instance/currycoach.sqlite3`. Database tidak disertakan dalam arsip ZIP.
 
@@ -53,4 +63,4 @@ Database lokal dibuat otomatis di `instance/currycoach.sqlite3`. Database tidak 
 
 - Grafik dibuat dengan HTML/CSS dan JavaScript tanpa dependensi chart eksternal.
 - Font Google Fonts memerlukan koneksi internet; fallback font sistem akan digunakan jika tidak tersedia.
-- Untuk deployment, wajib gunakan `SECRET_KEY` dan `ADMIN_KEY` yang kuat, HTTPS, serta server WSGI produksi. Jangan aktifkan Flask debug mode.
+- Untuk deployment, set `APP_ENV=production`, gunakan `SECRET_KEY` dan `ADMIN_KEY` yang kuat, aktifkan HTTPS dan `SESSION_COOKIE_SECURE=1`, serta gunakan server WSGI produksi. Aplikasi menolak startup production jika `SECRET_KEY` atau `ADMIN_KEY` belum diatur. Jangan aktifkan Flask debug mode.

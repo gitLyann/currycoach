@@ -144,3 +144,9 @@ def test_akurasi_data_uji():
     akurasi = benar / len(data)
     print(f"akurasi {akurasi:.1%} ({benar}/{len(data)})")
     assert akurasi >= 0.8
+
+
+def test_dataset_evaluasi_minimal_20_dan_4_pertanyaan_luar_topik():
+    data = baca_evaluasi()
+    assert len(data) >= 20
+    assert sum(1 for _, intent in data if intent == "fallback") >= 4
