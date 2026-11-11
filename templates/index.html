@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ tema.name }}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <div class="app" style="--biru: {{ tema.color }}">
+    <header>
+      <div class="logo" aria-hidden="true">{{ tema.avatar }}</div>
+      <div>
+        <h1>{{ tema.bot_name }}</h1>
+        <p>{{ tema.description }}</p>
+      </div>
+    </header>
+
+    <main id="chat" role="log" aria-live="polite" aria-label="Percakapan" data-greeting="{{ tema.greeting }}"></main>
+
+    <div class="topik" aria-label="Topik cepat">
+      {% for s in tema.suggestions %}
+      <button type="button" data-pesan="{{ s }}">{{ s }}</button>
+      {% endfor %}
+    </div>
+
+    <form id="form" autocomplete="off">
+      <label for="pesan" class="sr">Tulis pesan</label>
+      <input id="pesan" type="text" maxlength="300" placeholder="Tulis pertanyaanmu..." required>
+      <button type="submit">Kirim</button>
+    </form>
+  </div>
+  <script src="{{ url_for('static', filename='script.js') }}"></script>
+</body>
+</html>

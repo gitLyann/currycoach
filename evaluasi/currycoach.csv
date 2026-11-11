@@ -1,0 +1,33 @@
+kalimat,intent
+halo coach aku mau belajar,sapaan
+permisi coach mau tanya,sapaan
+hai coach selamat sore,sapaan
+menu apa saja yang ada,bantuan
+tampilkan daftar topik,bantuan
+apa yang bisa kamu bantu,bantuan
+tips menggiring bola untuk pemula,teknik_dribble
+bagaimana latihan crossover,teknik_dribble
+cara ball handling yang baik,teknik_dribble
+teknik free throw yang benar,teknik_shooting
+bagaimana cara nembak dari jauh,teknik_shooting
+kenapa tembakanku sering meleset,teknik_shooting
+apa itu center dalam basket,posisi_pemain
+peran small forward apa,posisi_pemain
+ada berapa posisi pemain basket,posisi_pemain
+program latihan seminggu,program_latihan
+pemanasan sebelum main bagaimana,program_latihan
+drill untuk pemula apa saja,program_latihan
+ceritakan tentang stephen curry,profil_curry
+siapa itu steph curry,profil_curry
+curry main di tim apa,profil_curry
+oke makasih coach,terima_kasih
+terima kasih banyak atas bantuannya,terima_kasih
+thanks ya,terima_kasih
+dadah coach,pamit
+sampai jumpa lagi,pamit
+oke bye dulu,pamit
+kamu itu siapa sebenarnya,identitas
+namamu siapa,identitas
+resep nasi goreng,fallback
+siapa presiden indonesia,fallback
+cara bayar ukt,fallback
