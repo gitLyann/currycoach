@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#1D428A">
+  <title>Admin Dashboard — CurryCoach</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=Outfit:wght@500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='admin.css') }}">
+</head>
+<body>
+  <div class="admin-shell">
+    <aside class="admin-sidebar">
+      <a class="admin-brand" href="/"><span>🏀</span><b>CurryCoach</b></a>
+      <p class="side-label">WORKSPACE</p>
+      <a href="/" class="side-link">▤ <span>Ruang belajar</span></a>
+      <a href="/admin" class="side-link active">▥ <span>Dashboard admin</span></a>
+      <div class="side-bottom"><span class="live-dot"></span> Admin workspace</div>
+    </aside>
+    <main class="admin-main">
+      <header class="admin-topbar"><div><span class="crumb">CurryCoach /</span> <b>Dashboard</b></div><a href="/" class="back-link">← Kembali ke chat</a></header>
+      <section class="dashboard-content">
+        <div class="page-heading"><div><p class="eyebrow">OVERVIEW & ANALYTICS</p><h1>Admin Dashboard</h1><p>Pantau aktivitas dan topik yang paling sering dipelajari pengguna.</p></div><button id="refresh-stats" class="refresh-button">↻ Perbarui data</button></div>
+        <section class="auth-panel" id="auth-panel"><div><b>🔐 Akses statistik admin</b><p>Masukkan ADMIN_KEY jika aplikasi kamu mengaktifkan proteksi admin. Jika kosong pada mode lokal, cukup tekan tampilkan dashboard.</p></div><div class="auth-controls"><input id="admin-key" type="password" autocomplete="current-password" placeholder="ADMIN_KEY (opsional)"><button id="load-dashboard">Tampilkan dashboard</button></div><small id="auth-error" role="status"></small></section>
+        <div id="dashboard" hidden>
+          <div class="metric-grid">
+            <article class="metric-card"><span class="metric-icon blue">✉</span><p>Total pertanyaan</p><strong id="total-questions">0</strong><small>Pesan dari pengguna</small></article>
+            <article class="metric-card"><span class="metric-icon green">✓</span><p>Berhasil dikenali</p><strong id="recognized">0</strong><small id="recognized-rate">0% dari pertanyaan</small></article>
+            <article class="metric-card"><span class="metric-icon gold">?</span><p>Belum dikenali</p><strong id="unrecognized">0</strong><small id="fallback-rate">0% dari pertanyaan</small></article>
+            <article class="metric-card"><span class="metric-icon purple">◎</span><p>Sesi pengguna</p><strong id="sessions">0</strong><small>Sesi percakapan tercatat</small></article>
+          </div>
+          <div class="analytics-grid">
+            <section class="panel intent-panel"><div class="panel-heading"><div><h2>Distribusi intent</h2><p>Jumlah jawaban berdasarkan kategori topik</p></div><span class="panel-tag">TOPIC ANALYTICS</span></div><div id="intent-chart" class="bar-chart"><p class="empty-state">Belum ada data intent.</p></div></section>
+            <section class="panel"><div class="panel-heading"><div><h2>Ringkasan pengenalan</h2><p>Perbandingan respons chatbot</p></div></div><div class="recognition-summary"><div class="donut" id="recognition-donut"><div><strong id="recognition-percent">0%</strong><small>recognized</small></div></div><div class="legend"><span><i class="legend-blue"></i>Dikenali <b id="legend-recognized">0</b></span><span><i class="legend-gold"></i>Fallback <b id="legend-unrecognized">0</b></span></div></div></section>
+          </div>
+          <section class="panel unknown-panel"><div class="panel-heading"><div><h2>Pertanyaan belum dikenali</h2><p>Daftar pertanyaan fallback yang dapat menjadi bahan pengembangan knowledge base.</p></div><span class="panel-tag">KNOWLEDGE GAP</span></div><div class="table-wrap"><table><thead><tr><th>Pertanyaan</th><th>Frekuensi</th></tr></thead><tbody id="unknown-questions"><tr><td colspan="2" class="empty-state">Belum ada pertanyaan fallback.</td></tr></tbody></table></div></section>
+          <p class="data-note">Data diperbarui berdasarkan catatan percakapan pada database SQLite aplikasi ini.</p>
+        </div>
+      </section>
+    </main>
+  </div>
+  <script src="{{ url_for('static', filename='admin.js') }}" defer></script>
+</body>
+</html>

@@ -72,3 +72,15 @@ def test_invalid_payloads(client):
 def test_wrong_theme_returns_404(client):
     assert client.get("/api/history/not-real").status_code == 404
     assert client.post("/api/chat", json={"theme": "not-real", "message": "halo"}).status_code == 404
+
+
+def test_admin_page_is_available(client):
+    response = client.get("/admin")
+    assert response.status_code == 200
+    assert "Admin Dashboard" in response.get_data(as_text=True)
+
+
+def test_chat_page_includes_explain_mode_and_clear_history_controls(client):
+    html = client.get("/").get_data(as_text=True)
+    assert 'id="explain-mode"' in html
+    assert 'id="clear-history"' in html

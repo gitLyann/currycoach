@@ -3,33 +3,80 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>{{ tema.name }}</title>
+  <meta name="theme-color" content="#1D428A">
+  <title>{{ tema.bot_name }} — Teman Belajar Basket</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=Outfit:wght@500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
-  <div class="app" style="--biru: {{ tema.color }}">
-    <header>
-      <div class="logo" aria-hidden="true">{{ tema.avatar }}</div>
-      <div>
-        <h1>{{ tema.bot_name }}</h1>
-        <p>{{ tema.description }}</p>
-      </div>
-    </header>
+  <div class="workspace" style="--warriors-blue: {{ tema.color }}">
+    <aside class="sidebar" aria-label="Navigasi utama">
+      <a class="brand" href="/" aria-label="CurryCoach beranda">
+        <span class="brand-mark">🏀</span>
+        <span class="brand-copy"><strong>CurryCoach</strong><small>PLAY SMARTER</small></span>
+      </a>
+      <div class="nav-label">MENU UTAMA</div>
+      <a class="nav-link active" href="/"><span class="nav-icon">▤</span> Ruang belajar</a>
+      <a class="nav-link" href="/admin"><span class="nav-icon">▥</span> Dashboard admin</a>
+      <div class="sidebar-spacer"></div>
+      <section class="sidebar-tip">
+        <span class="tip-ball">🏆</span>
+        <strong>Keep practicing!</strong>
+        <p>Latihan kecil hari ini, permainan lebih baik esok hari.</p>
+      </section>
+      <div class="sidebar-footer"><span class="online-dot"></span> CurryCoach siap membantu</div>
+    </aside>
 
-    <main id="chat" role="log" aria-live="polite" aria-label="Percakapan" data-greeting="{{ tema.greeting }}"></main>
+    <main class="main-panel">
+      <header class="topbar">
+        <div class="mobile-brand"><span>🏀</span><strong>CurryCoach</strong></div>
+        <div class="breadcrumb">Ruang belajar <span>/</span> <strong>Asisten basket</strong></div>
+        <div class="topbar-right"><span class="status-pill"><i></i> Online</span><span class="avatar-user">Y</span></div>
+      </header>
 
-    <div class="topik" aria-label="Topik cepat">
-      {% for s in tema.suggestions %}
-      <button type="button" data-pesan="{{ s }}">{{ s }}</button>
-      {% endfor %}
-    </div>
+      <section class="content-area">
+        <div class="welcome-row">
+          <div>
+            <p class="eyebrow">YOUR PERSONAL BASKETBALL COMPANION</p>
+            <h1>Let’s talk <span>basketball.</span></h1>
+            <p class="welcome-description">Belajar basket dari dasar, satu pertanyaan dalam satu waktu.</p>
+          </div>
+          <div class="hero-ball" aria-hidden="true">🏀</div>
+        </div>
 
-    <form id="form" autocomplete="off">
-      <label for="pesan" class="sr">Tulis pesan</label>
-      <input id="pesan" type="text" maxlength="300" placeholder="Tulis pertanyaanmu..." required>
-      <button type="submit">Kirim</button>
-    </form>
+        <section class="chat-card" aria-label="Percakapan CurryCoach">
+          <div class="chat-card-header">
+            <div class="coach-identity"><div class="coach-avatar">🏀</div><div><strong>{{ tema.bot_name }}</strong><small><span class="online-dot"></span> Basketball learning assistant</small></div></div>
+            <div class="chat-actions">
+              <label class="explain-toggle" title="Tampilkan analisis intent dari mesin chatbot"><input type="checkbox" id="explain-mode"><span class="toggle-track"></span><span>Explain Mode</span></label>
+              <button type="button" class="icon-button" id="clear-history" title="Hapus riwayat" aria-label="Hapus riwayat">⌫</button>
+            </div>
+          </div>
+
+          <main id="chat" class="chat-feed" role="log" aria-live="polite" aria-label="Percakapan" data-greeting="{{ tema.greeting|e }}" data-theme="{{ tema.id }}">
+            <div class="welcome-card" id="welcome-card"><span>👋</span><div><strong>Welcome to the court!</strong><p>Hai! Aku CurryCoach. Ada yang ingin kamu pelajari tentang basket hari ini?</p></div></div>
+          </main>
+
+          <div class="suggestion-area">
+            <div class="suggestion-heading"><span>COBA TANYAKAN</span><small>Ide untuk memulai percakapan</small></div>
+            <div class="suggestions" aria-label="Topik cepat">
+              {% for s in tema.suggestions %}<button type="button" class="suggestion-chip" data-pesan="{{ s|e }}">{{ s }}</button>{% endfor %}
+            </div>
+          </div>
+
+          <form id="form" class="composer" autocomplete="off">
+            <label for="pesan" class="sr">Tulis pesan</label>
+            <input id="pesan" type="text" maxlength="300" placeholder="Tanyakan sesuatu tentang basket..." required>
+            <span class="input-hint">Enter untuk mengirim</span>
+            <button type="submit" id="send-button"><span>Kirim</span><b>➤</b></button>
+          </form>
+          <p class="disclaimer">CurryCoach dapat membuat kesalahan. Gunakan jawaban sebagai panduan belajar, bukan pengganti pelatih profesional.</p>
+        </section>
+      </section>
+    </main>
   </div>
-  <script src="{{ url_for('static', filename='script.js') }}"></script>
+  <script src="{{ url_for('static', filename='script.js') }}" defer></script>
 </body>
 </html>

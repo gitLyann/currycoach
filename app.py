@@ -155,6 +155,11 @@ def create_app(test_config: dict | None = None) -> Flask:
             return jsonify(error="Tema tidak ditemukan."), 404
         return render_template("index.html", tema=tema)
 
+    @app.get("/admin")
+    def halaman_admin():
+        # Data statistik tetap dilindungi oleh ADMIN_KEY pada endpoint API.
+        return render_template("admin.html", tema=tema)
+
     @app.get("/api/themes")
     def daftar_tema():
         return jsonify(themes=[{
