@@ -2,6 +2,8 @@
 
 Dokumen ini menjelaskan tambahan pada paket tahap 54%. Angka 54% adalah target rencana berdasarkan bobot pada laporan kemajuan, bukan klaim bahwa deployment/API eksternal sudah berhasil sebelum diuji pada akun dan jaringan pengguna.
 
+Status terkini sudah melewati target scripting; lihat `PROGRES.md` untuk bukti scraping, API wger, TF-IDF, analitik, dan pengujian terkini. Deployment tetap ditunda.
+
 ## Isi pengembangan
 
 1. **A1 — Deployment publik (ditunda ke tahap akhir)**

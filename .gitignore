@@ -32,7 +32,5 @@ htmlcov/
 .DS_Store
 Thumbs.db
 
-# Generated integration data (keep only placeholders)
+# Generated integration data
 data/osm_cache.json
-data/references/*.json
-data/references/*.csv

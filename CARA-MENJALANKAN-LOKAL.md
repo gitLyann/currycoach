@@ -59,17 +59,18 @@ Buka browser ke `http://127.0.0.1:5000/`. Untuk memeriksa server, buka `http://1
 python telegram_bot.py
 ```
 
-5. Cari username bot di Telegram, lalu kirim `/start`. Coba `/tanya bagaimana cara melakukan free throw?`. Untuk `/lapangan`, kirim perintah itu lalu bagikan lokasi.
+5. Cari username bot di Telegram, lalu kirim `/start`. Coba `/tanya bagaimana cara melakukan free throw?`, `/latihan pemula tanpa alat kaki`, `/catat`, `/laporan`, dan `/lapangan` lalu bagikan lokasi.
 
 Flask harus tetap berjalan di terminal pertama. Bot polling berjalan selama terminal kedua tetap aktif.
 
-## 6. Jalankan scraping (opsional; perlu URL sumber yang mengizinkan)
+## 6. Perbarui data referensi dan katalog latihan
 
 ```powershell
-python scripts/scrape_reference.py "https://alamat-sumber-yang-diizinkan/halaman"
+python scripts/scrape_reference.py "https://en.wikipedia.org/wiki/Basketball" --delay 2
+python scripts/import_data.py --limit 150
 ```
 
-Ganti URL contoh dengan sumber nyata. Periksa kebijakan situs dan `robots.txt`; jangan mencoba melewati larangan situs. Hasil scraping disimpan di folder `data/references/`.
+Periksa kebijakan situs dan `robots.txt`; jangan mencoba melewati larangan situs. Hasil scraping disimpan di `data/references/`. `import_data.py` mengisi tabel `referensi` dan `exercises`; gunakan `--offline` untuk memakai snapshot `data/exercises_wger.json` tanpa internet.
 
 ## 7. Jalankan pengujian
 
@@ -80,8 +81,8 @@ python evaluate.py
 
 ## Urutan yang disarankan
 1. Pastikan website lama berjalan.
-2. Uji endpoint `/api/health`.
+2. Uji endpoint `/api/health`, `/api/latihan`, dan `/api/laporan/<id>`.
 3. Uji Telegram Bot.
 4. Uji pencarian lapangan OpenStreetMap.
-5. Uji scraping dengan sumber yang diizinkan.
+5. Uji scraping dan impor data.
 6. Hosting publik dikerjakan paling akhir setelah semua fitur stabil.

@@ -92,3 +92,21 @@ def test_production_requires_secret_and_admin_key(tmp_path, monkeypatch):
     monkeypatch.delenv("ADMIN_KEY", raising=False)
     with pytest.raises(RuntimeError, match="SECRET_KEY wajib"):
         create_app({"TESTING": True, "DATABASE": str(tmp_path / "prod.sqlite3")})
+
+
+def test_latihan_and_laporan_endpoints(client):
+    from chatbot.database import simpan_latihan, simpan_sesi_latihan
+
+    database = client.application.config["DATABASE"]
+    simpan_latihan(database, [{
+        "external_id": 4242, "name": "Braced Squat", "category": "Legs",
+        "equipment": "tanpa alat", "muscles": "Quads", "level": "pemula",
+        "description": "", "source": "wger",
+    }])
+    simpan_sesi_latihan(database, 77, 1, 20, 10)
+
+    latihan = client.get("/api/latihan?level=pemula").get_json()
+    assert latihan["count"] == 1
+    laporan = client.get("/api/laporan/77", headers={"X-Admin-Key": "test-admin"})
+    assert laporan.status_code == 200
+    assert laporan.get_json()["ringkasan"]["total_sesi"] == 1

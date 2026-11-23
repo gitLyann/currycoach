@@ -1,17 +1,14 @@
-# Status Verifikasi Paket Tahap 54%
+# Status Integrasi CurryCoach
 
-Paket ini dibuat dari arsip CurryCoach yang diberikan pengguna dan mempertahankan fitur/folder proyek yang sudah ada, dengan tambahan integrasi tahap A1-A4.
+Dokumen ini dahulu mencatat target tahap 54%. Target tersebut sudah terlampaui untuk sisi scripting, kecuali deployment publik yang sengaja ditunda sesuai permintaan.
 
-## Sudah diperiksa pada saat pembuatan paket
-- Seluruh 16 berkas Python lolos pemeriksaan sintaks (`compile`).
-- Dua tes validasi offline untuk modul baru lulus.
-- Struktur sumber asli, template, aset, tes lama, dan basis pengetahuan dipertahankan.
-- `.venv`, `.git`, dan database lokal tidak dimasukkan ke ZIP.
+Ringkasan terkini:
 
-## Belum dapat dinyatakan selesai
-- Seluruh tes lama belum dapat dijalankan di lingkungan pembuatan paket karena Flask tidak tersedia dan akses internet untuk memasang dependency tidak tersedia.
-- Telegram Bot belum dapat diuji tanpa token BotFather.
-- Pencarian OpenStreetMap dan web scraping belum diuji terhadap layanan eksternal langsung.
-- Deployment publik belum dilakukan karena membutuhkan akun hosting dan konfigurasi repository milik pengguna.
+- Scraping Wikipedia sudah dijalankan; hasil ada di `data/references/`.
+- API wger sudah diimpor ke tabel `exercises`; snapshot ada di `data/exercises_wger.json`.
+- Bot Telegram memiliki `/start`, `/tanya`, `/latihan`, `/catat`, `/laporan`, `/lapangan`, dan pengingat.
+- TF-IDF, analitik pandas, dan rekomendasi sudah terhubung ke aplikasi.
+- Pengujian: 198 test lolos dan evaluasi 37/37 benar.
+- Deployment publik belum dilakukan dan belum diklaim selesai.
 
-Karena itu, 54% adalah target setelah A1-A4 benar-benar dijalankan dan dibuktikan. Paket ini menyediakan implementasi dan panduan agar tahap-tahap tersebut dapat diselesaikan. Catat URL publik, screenshot Telegram, hasil pencarian OSM, dan file JSON/CSV hasil scraping sebagai bukti.
+Rincian lengkap ada di `PROGRES.md`.

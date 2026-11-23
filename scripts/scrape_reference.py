@@ -24,7 +24,11 @@ def scrape(url: str, delay: float = 2.0) -> dict:
     robot = urllib.robotparser.RobotFileParser()
     robot.set_url(robots_url)
     try:
-        robot.read()
+        respons_robot = requests.get(
+            robots_url, headers={"User-Agent": USER_AGENT}, timeout=20
+        )
+        respons_robot.raise_for_status()
+        robot.parse(respons_robot.text.lstrip("\ufeff").splitlines())
     except Exception as exc:
         raise RuntimeError(f"Tidak dapat memeriksa robots.txt ({robots_url}): {exc}") from exc
     if not robot.can_fetch(USER_AGENT, url):
@@ -51,7 +55,7 @@ def scrape(url: str, delay: float = 2.0) -> dict:
         "paragraphs": paragraphs[:80],
     }
     OUT_DIR.mkdir(parents=True, exist_ok=True)
-    stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    stamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
     json_path = OUT_DIR / f"reference_{stamp}.json"
     csv_path = OUT_DIR / f"reference_{stamp}.csv"
     json_path.write_text(json.dumps(record, ensure_ascii=False, indent=2), encoding="utf-8")

@@ -19,16 +19,19 @@ Proyek ini dikembangkan menggunakan Python dan Flask dengan sistem pencocokan po
 - **Local Production Server:** Mendukung penggunaan Waitress sebagai server WSGI.
 
 
-## Fitur Tahap Pengembangan 54%
+## Fitur Integrasi Scripting
 
-Paket ini mempertahankan chatbot web dan menambahkan fondasi integrasi scripting:
+Chatbot web tetap dipakai, dengan fitur scripting yang sudah dihubungkan ke aplikasi:
 
-- **Telegram Bot:** `/start`, `/tanya`, dan `/lapangan` melalui polling.
-- **OpenStreetMap:** pencarian objek lapangan basket berdasarkan lokasi Telegram, dengan cache 24 jam.
-- **Web Scraping:** skrip `scripts/scrape_reference.py` memeriksa `robots.txt`, memberi jeda request, dan menyimpan hasil sebagai JSON/CSV.
-- **Deployment:** `render.yaml` sebagai konfigurasi awal hosting Flask. Deployment publik tetap harus dilakukan dan diuji pada akun hosting milik pengguna.
+- **Web Scraping:** `scripts/scrape_reference.py` memeriksa `robots.txt`, memberi jeda request, dan menyimpan artikel referensi ke `data/references/` sebagai JSON/CSV.
+- **API wger:** `scripts/import_data.py` mengambil katalog latihan dan menyimpannya ke SQLite; snapshot disimpan di `data/exercises_wger.json` agar bisa diimpor ulang tanpa internet.
+- **OpenStreetMap:** pencarian lapangan basket melalui Overpass API dengan cache 24 jam di `data/osm_cache.json`.
+- **TF-IDF:** `chatbot/tfidf.py` memakai korpus hasil scraping untuk menjawab pertanyaan di luar intent.
+- **Telegram Bot:** `/start`, `/tanya`, `/latihan`, `/catat`, `/laporan`, dan `/lapangan`, termasuk pengingat harian.
+- **Analitik:** `analytics/` merangkum latihan mingguan dengan pandas dan memberi rekomendasi berbasis aturan.
+- **Deployment:** `render.yaml` hanya persiapan. Deployment publik sengaja ditunda dan belum diuji.
 
-Lihat `PANDUAN-TAHAP-54.md` untuk instruksi instalasi, konfigurasi `.env`, menjalankan bot, scraping, dan deployment.
+Lihat `PROGRES.md` untuk rincian yang sudah dikerjakan dan `CARA-MENJALANKAN-LOKAL.md` untuk instruksi menjalankan aplikasi.
 
 ## Teknologi yang Digunakan
 
@@ -36,7 +39,11 @@ Lihat `PANDUAN-TAHAP-54.md` untuk instruksi instalasi, konfigurasi `.env`, menja
 |---|---|
 | Python | Bahasa pemrograman utama |
 | Flask | Framework backend |
-| SQLite | Penyimpanan riwayat percakapan |
+| SQLite | Riwayat, referensi, katalog latihan, dan catatan sesi |
+| requests | Permintaan HTTP ke API dan halaman referensi |
+| BeautifulSoup | Parsing HTML hasil scraping |
+| pandas | Ringkasan latihan mingguan |
+| scikit-learn | Vektorisasi TF-IDF dan cosine similarity |
 | Waitress | Server WSGI |
 | HTML | Struktur halaman |
 | CSS | Desain dan responsivitas antarmuka |
@@ -49,17 +56,39 @@ Lihat `PANDUAN-TAHAP-54.md` untuk instruksi instalasi, konfigurasi `.env`, menja
 currycoach/
 ├── app.py
 ├── wsgi.py
+├── config.py
 ├── currycoach.json
-├── intents.json
 ├── requirements.txt
 ├── evaluate.py
+├── telegram_bot.py
 ├── .env.example
 ├── .gitignore
+│
+├── analytics/
+│   ├── __init__.py
+│   ├── laporan.py
+│   └── rekomendasi.py
 │
 ├── chatbot/
 │   ├── __init__.py
 │   ├── database.py
-│   └── engine.py
+│   ├── engine.py
+│   ├── handlers.py
+│   └── tfidf.py
+│
+├── services/
+│   ├── __init__.py
+│   └── osm.py
+│
+├── scripts/
+│   ├── __init__.py
+│   ├── import_data.py
+│   └── scrape_reference.py
+│
+├── data/
+│   ├── exercises_wger.json
+│   ├── osm_cache.json
+│   └── references/          # hasil scraping CSV/JSON
 │
 ├── evaluasi/
 │   └── currycoach.csv
@@ -78,8 +107,11 @@ currycoach/
 │   ├── __init__.py
 │   ├── test_backend.py
 │   ├── test_chat.py
-│   └── test_engine.py
+│   ├── test_data.py
+│   ├── test_engine.py
+│   ├── test_integrations.py
 │
+├── PROGRES.md
 ├── DEPLOYMENT.md
 ├── LAPORAN-UJI-TAHAP-4.md
 └── TEMPLATE-LAPORAN-AKHIR.md

@@ -9,12 +9,16 @@ from pathlib import Path
 from flask import Flask, jsonify, render_template, request, session
 from dotenv import load_dotenv
 from chatbot.database import (
-    ambil_riwayat, hapus_riwayat, init_db, simpan_pesan, statistik,
+    ambil_riwayat, cari_latihan, hapus_riwayat, init_db, simpan_pesan, statistik,
 )
 from chatbot.engine import (
     DEFAULT_THRESHOLD, cari_intent as _cari_intent, cari_intent_detail,
     muat_tema, normalisasi,
 )
+from chatbot.handlers import jawaban_latihan
+from chatbot.tfidf import muat_mesin_dari_database
+from analytics.laporan import format_laporan, ringkasan_mingguan
+from analytics.rekomendasi import format_rekomendasi, rekomendasi
 
 BASE = Path(__file__).resolve().parent
 load_dotenv(BASE / ".env")
@@ -96,6 +100,11 @@ def create_app(test_config: dict | None = None) -> Flask:
     theme_id = tema["id"]
     fallback = tema["fallback"]
     init_db(app.config["DATABASE"])
+    mesin_tfidf = muat_mesin_dari_database(
+        app.config["DATABASE"],
+        limit=int(os.getenv("TFIDF_LIMIT", "500")),
+        threshold=float(os.getenv("TFIDF_THRESHOLD", "0.22")),
+    )
 
     def session_id() -> str:
         if "session_id" not in session:
@@ -109,20 +118,36 @@ def create_app(test_config: dict | None = None) -> Flask:
         terbaik, kandidat = cari_intent_detail(
             pesan, intents, float(app.config["THRESHOLD"])
         )
+        referensi_terbaik = None
         if terbaik is None:
-            intent_tag = "fallback"
-            jawaban = isi_placeholder(random.choice(fallback))
-            score = round(kandidat[0]["score"], 4) if kandidat else 0.0
+            referensi_terbaik = mesin_tfidf.cari(pesan, top_n=1)
+            if referensi_terbaik:
+                item = referensi_terbaik[0]
+                potongan = item["text"][:240].rsplit(" ", 1)[0]
+                intent_tag = "referensi"
+                jawaban = (f"Dari referensi basket ({item['source']}): "
+                           f"{potongan}...")
+                score = item["score"]
+            else:
+                intent_tag = "fallback"
+                jawaban = isi_placeholder(random.choice(fallback))
+                score = round(kandidat[0]["score"], 4) if kandidat else 0.0
         else:
             intent_tag = terbaik["intent"]["tag"]
             jawaban = isi_placeholder(random.choice(terbaik["intent"]["responses"]))
             score = round(terbaik["score"], 4)
+            if intent_tag == "program_latihan":
+                tambahan = jawaban_latihan(app.config["DATABASE"], pesan)
+                if tambahan:
+                    jawaban = f"{jawaban}\n\n{tambahan}"
 
         sid = session_id()
         simpan_pesan(app.config["DATABASE"], sid, theme_id, "user", pesan)
         simpan_pesan(app.config["DATABASE"], sid, theme_id, "bot", jawaban,
                      intent=intent_tag, score=score)
         hasil = {"reply": jawaban, "intent": intent_tag, "score": score}
+        if referensi_terbaik:
+            hasil["source"] = referensi_terbaik[0]["source"]
         if explain:
             hasil["candidates"] = [
                 {"intent": item["tag"], "score": round(item["score"], 4),
@@ -233,6 +258,32 @@ def create_app(test_config: dict | None = None) -> Flask:
         if not admin_diizinkan():
             return jsonify(error="Akses admin ditolak."), 401
         return jsonify(theme=theme, **statistik(app.config["DATABASE"], theme))
+
+    @app.get("/api/latihan")
+    def api_latihan():
+        try:
+            limit = min(max(int(request.args.get("limit", 5)), 1), 20)
+        except ValueError:
+            return jsonify(error="Parameter limit harus berupa angka."), 400
+        items = cari_latihan(
+            app.config["DATABASE"],
+            level=request.args.get("level"),
+            alat=request.args.get("alat"),
+            otot=request.args.get("otot"),
+            limit=limit,
+        )
+        return jsonify(count=len(items), latihan=items)
+
+    @app.get("/api/laporan/<int:telegram_id>")
+    def api_laporan(telegram_id):
+        if not admin_diizinkan():
+            return jsonify(error="Akses admin ditolak."), 401
+        ringkasan = ringkasan_mingguan(app.config["DATABASE"], telegram_id)
+        saran = rekomendasi(app.config["DATABASE"], telegram_id, ringkasan)
+        return jsonify(
+            ringkasan=ringkasan, saran=saran,
+            teks=format_laporan(ringkasan) + "\n" + format_rekomendasi(saran),
+        )
 
     @app.get("/api/health")
     def health():
