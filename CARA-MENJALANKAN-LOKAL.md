@@ -59,7 +59,7 @@ Buka browser ke `http://127.0.0.1:5000/`. Untuk memeriksa server, buka `http://1
 python telegram_bot.py
 ```
 
-5. Cari username bot di Telegram, lalu kirim `/start`. Coba `/tanya bagaimana cara melakukan free throw?`, `/latihan pemula tanpa alat kaki`, `/catat`, `/laporan`, dan `/lapangan` lalu bagikan lokasi.
+5. Cari username bot di Telegram, lalu kirim `/start`. Coba `/tanya bagaimana cara melakukan free throw?`, `/latihan pemula tanpa alat kaki`, `/catat`, `/laporan`, dan `/lapangan` lalu bagikan lokasi. Gunakan `/session` untuk melihat sesi, `/session baru` untuk sesi baru, `/session 1` untuk berpindah, `/user` untuk identitas, dan `/riwayat` untuk 5 pesan terakhir.
 
 Flask harus tetap berjalan di terminal pertama. Bot polling berjalan selama terminal kedua tetap aktif.
 

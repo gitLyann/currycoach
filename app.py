@@ -114,7 +114,9 @@ def create_app(test_config: dict | None = None) -> Flask:
     def isi_placeholder(teks: str) -> str:
         return teks.replace("{nama_bot}", tema["bot_name"])
 
-    def proses_pesan(pesan: str, explain: bool = False) -> dict:
+    def proses_pesan(pesan: str, explain: bool = False,
+                     sid_override: str | None = None,
+                     simpan_riwayat: bool = True) -> dict:
         terbaik, kandidat = cari_intent_detail(
             pesan, intents, float(app.config["THRESHOLD"])
         )
@@ -141,10 +143,11 @@ def create_app(test_config: dict | None = None) -> Flask:
                 if tambahan:
                     jawaban = f"{jawaban}\n\n{tambahan}"
 
-        sid = session_id()
-        simpan_pesan(app.config["DATABASE"], sid, theme_id, "user", pesan)
-        simpan_pesan(app.config["DATABASE"], sid, theme_id, "bot", jawaban,
-                     intent=intent_tag, score=score)
+        sid = sid_override or session_id()
+        if simpan_riwayat:
+            simpan_pesan(app.config["DATABASE"], sid, theme_id, "user", pesan)
+            simpan_pesan(app.config["DATABASE"], sid, theme_id, "bot", jawaban,
+                         intent=intent_tag, score=score)
         hasil = {"reply": jawaban, "intent": intent_tag, "score": score}
         if referensi_terbaik:
             hasil["source"] = referensi_terbaik[0]["source"]
@@ -221,7 +224,19 @@ def create_app(test_config: dict | None = None) -> Flask:
         requested_theme = data.get("theme", theme_id)
         if requested_theme != theme_id:
             return jsonify(error="Tema tidak ditemukan."), 404
-        return jsonify(proses_pesan(pesan))
+        sid_override = data.get("session_id")
+        if sid_override is not None:
+            if not isinstance(sid_override, str):
+                return jsonify(error="session_id harus berupa teks."), 400
+            try:
+                uuid.UUID(sid_override)
+            except ValueError:
+                return jsonify(error="session_id tidak valid."), 400
+        simpan_riwayat = data.get("simpan_riwayat", True)
+        if not isinstance(simpan_riwayat, bool):
+            return jsonify(error="simpan_riwayat harus berupa boolean."), 400
+        return jsonify(proses_pesan(pesan, sid_override=sid_override,
+                                    simpan_riwayat=simpan_riwayat))
 
     @app.post("/api/explain")
     def api_explain():

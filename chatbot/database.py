@@ -1,6 +1,7 @@
 """Lapisan akses SQLite untuk riwayat dan statistik CurryCoach."""
 from __future__ import annotations
 import sqlite3
+import uuid
 from contextlib import contextmanager
 from pathlib import Path
 
@@ -50,6 +51,22 @@ CREATE TABLE IF NOT EXISTS workout_sessions (
     created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
 );
 CREATE INDEX IF NOT EXISTS idx_sessions_user ON workout_sessions(telegram_id, created_at);
+CREATE TABLE IF NOT EXISTS telegram_users (
+    telegram_id INTEGER PRIMARY KEY,
+    username TEXT NOT NULL DEFAULT '',
+    first_name TEXT NOT NULL DEFAULT '',
+    active_session_id TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+    updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+);
+CREATE TABLE IF NOT EXISTS chat_sessions (
+    session_id TEXT PRIMARY KEY,
+    telegram_id INTEGER NOT NULL REFERENCES telegram_users(telegram_id),
+    label TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+    last_used_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+);
+CREATE INDEX IF NOT EXISTS idx_chat_sessions_user ON chat_sessions(telegram_id, created_at);
 """
 
 
@@ -324,3 +341,127 @@ def pengguna_perlu_pengingat(database: str | Path, hari: int = 2) -> list[int]:
             (f"-{int(hari)} days",),
         ).fetchall()
     return [int(row["telegram_id"]) for row in rows]
+
+
+def sesi_aktif_telegram(database: str | Path, telegram_id: int,
+                        username: str = "", first_name: str = "") -> str:
+    """Ambil session_id aktif dari user Telegram; buat bila belum ada."""
+    telegram_id = int(telegram_id)
+    with get_connection(database) as connection:
+        baris = connection.execute(
+            "SELECT active_session_id FROM telegram_users WHERE telegram_id = ?",
+            (telegram_id,),
+        ).fetchone()
+        if baris:
+            session_id = baris["active_session_id"]
+            connection.execute(
+                """UPDATE telegram_users
+                   SET username = ?, first_name = ?,
+                       updated_at = strftime('%Y-%m-%dT%H:%M:%fZ','now')
+                   WHERE telegram_id = ?""",
+                (str(username or ""), str(first_name or ""), telegram_id),
+            )
+            connection.execute(
+                """UPDATE chat_sessions
+                   SET last_used_at = strftime('%Y-%m-%dT%H:%M:%fZ','now')
+                   WHERE session_id = ?""",
+                (session_id,),
+            )
+            return session_id
+        session_id = str(uuid.uuid4())
+        connection.execute(
+            """INSERT INTO telegram_users
+               (telegram_id, username, first_name, active_session_id)
+               VALUES (?, ?, ?, ?)""",
+            (telegram_id, str(username or ""), str(first_name or ""), session_id),
+        )
+        connection.execute(
+            """INSERT INTO chat_sessions
+               (session_id, telegram_id, label) VALUES (?, ?, ?)""",
+            (session_id, telegram_id, "Sesi 1"),
+        )
+        return session_id
+
+
+def daftar_sesi_telegram(database: str | Path, telegram_id: int) -> list[dict]:
+    """Semua sesi milik satu user Telegram beserta jumlah pesannya."""
+    with get_connection(database) as connection:
+        rows = connection.execute(
+            """SELECT s.session_id, s.label, s.created_at, s.last_used_at,
+                      u.active_session_id,
+                      (SELECT COUNT(*) FROM messages AS m
+                       WHERE m.session_id = s.session_id) AS jumlah_pesan
+               FROM chat_sessions AS s
+               JOIN telegram_users AS u ON u.telegram_id = s.telegram_id
+               WHERE s.telegram_id = ?
+               ORDER BY s.created_at, s.rowid""",
+            (int(telegram_id),),
+        ).fetchall()
+    hasil = [dict(row) for row in rows]
+    for item in hasil:
+        item["aktif"] = item["session_id"] == item["active_session_id"]
+    return hasil
+
+
+def info_sesi_aktif(database: str | Path, telegram_id: int) -> dict:
+    """Detail sesi yang sedang aktif untuk user Telegram."""
+    session_id = sesi_aktif_telegram(database, telegram_id)
+    for item in daftar_sesi_telegram(database, telegram_id):
+        if item["session_id"] == session_id:
+            return item
+    return {"session_id": session_id, "label": "Sesi 1", "jumlah_pesan": 0,
+            "aktif": True}
+
+
+def sesi_baru_telegram(database: str | Path, telegram_id: int) -> tuple[str, str]:
+    """Buat sesi baru, jadikan aktif, dan kembalikan (session_id, label)."""
+    sesi_aktif_telegram(database, telegram_id)
+    with get_connection(database) as connection:
+        jumlah = connection.execute(
+            "SELECT COUNT(*) FROM chat_sessions WHERE telegram_id = ?",
+            (int(telegram_id),),
+        ).fetchone()[0]
+        session_id = str(uuid.uuid4())
+        label = f"Sesi {jumlah + 1}"
+        connection.execute(
+            """INSERT INTO chat_sessions
+               (session_id, telegram_id, label) VALUES (?, ?, ?)""",
+            (session_id, int(telegram_id), label),
+        )
+        connection.execute(
+            """UPDATE telegram_users
+               SET active_session_id = ?,
+                   updated_at = strftime('%Y-%m-%dT%H:%M:%fZ','now')
+               WHERE telegram_id = ?""",
+            (session_id, int(telegram_id)),
+        )
+    return session_id, label
+
+
+def pilih_sesi_telegram(database: str | Path, telegram_id: int,
+                        nomor: int | str) -> dict | None:
+    """Ganti sesi aktif berdasarkan nomor urut dari /session."""
+    try:
+        nomor = int(nomor)
+    except (TypeError, ValueError):
+        return None
+    daftar = daftar_sesi_telegram(database, telegram_id)
+    if not 1 <= nomor <= len(daftar):
+        return None
+    pilihan = daftar[nomor - 1]
+    with get_connection(database) as connection:
+        connection.execute(
+            """UPDATE telegram_users
+               SET active_session_id = ?,
+                   updated_at = strftime('%Y-%m-%dT%H:%M:%fZ','now')
+               WHERE telegram_id = ?""",
+            (pilihan["session_id"], int(telegram_id)),
+        )
+        connection.execute(
+            """UPDATE chat_sessions
+               SET last_used_at = strftime('%Y-%m-%dT%H:%M:%fZ','now')
+               WHERE session_id = ?""",
+            (pilihan["session_id"],),
+        )
+    pilihan["aktif"] = True
+    return pilihan

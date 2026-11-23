@@ -1,7 +1,8 @@
 """Tes offline untuk scraping, import data, TF-IDF, dan analitik."""
 from chatbot.database import (
-    ambil_referensi, data_sesi_latihan, init_db, simpan_latihan,
-    simpan_referensi, simpan_sesi_latihan,
+    ambil_referensi, daftar_sesi_telegram, data_sesi_latihan, info_sesi_aktif,
+    init_db, pilih_sesi_telegram, sesi_aktif_telegram, sesi_baru_telegram,
+    simpan_latihan, simpan_pesan, simpan_referensi, simpan_sesi_latihan,
 )
 from analytics.laporan import format_laporan, ringkasan_mingguan
 from analytics.rekomendasi import rekomendasi
@@ -57,6 +58,22 @@ def test_tfidf_menjawab_topik_basket_dan_menolak_topik_lain():
     )
     assert mesin.cari("siapa yang menemukan basketball?")
     assert not mesin.cari("cuaca hari ini di yogyakarta")
+
+
+def test_sesi_telegram_tersimpan_dan_bisa_diganti(tmp_path):
+    database = str(tmp_path / "sesi.sqlite3")
+    init_db(database)
+    awal = sesi_aktif_telegram(database, 77, "ucup", "Ucup")
+    assert awal == sesi_aktif_telegram(database, 77)
+    simpan_pesan(database, awal, "currycoach", "user", "halo")
+    baru, label = sesi_baru_telegram(database, 77)
+    assert baru != awal
+    assert label == "Sesi 2"
+    assert info_sesi_aktif(database, 77)["session_id"] == baru
+    assert len(daftar_sesi_telegram(database, 77)) == 2
+    assert pilih_sesi_telegram(database, 77, 1)["session_id"] == awal
+    assert info_sesi_aktif(database, 77)["jumlah_pesan"] == 1
+    assert pilih_sesi_telegram(database, 77, 99) is None
 
 
 def test_ringkasan_dan_rekomendasi_mingguan(tmp_path):

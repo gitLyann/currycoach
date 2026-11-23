@@ -27,7 +27,7 @@ Chatbot web tetap dipakai, dengan fitur scripting yang sudah dihubungkan ke apli
 - **API wger:** `scripts/import_data.py` mengambil katalog latihan dan menyimpannya ke SQLite; snapshot disimpan di `data/exercises_wger.json` agar bisa diimpor ulang tanpa internet.
 - **OpenStreetMap:** pencarian lapangan basket melalui Overpass API dengan cache 24 jam di `data/osm_cache.json`.
 - **TF-IDF:** `chatbot/tfidf.py` memakai korpus hasil scraping untuk menjawab pertanyaan di luar intent.
-- **Telegram Bot:** `/start`, `/tanya`, `/latihan`, `/catat`, `/laporan`, dan `/lapangan`, termasuk pengingat harian.
+- **Telegram Bot:** `/start`, `/tanya`, `/latihan`, `/catat`, `/laporan`, `/lapangan`, `/session`, `/user`, dan `/riwayat`, termasuk pengingat harian. Setiap Telegram ID punya sesi tersimpan, dan semua pesan bot dicatat di SQLite.
 - **Analitik:** `analytics/` merangkum latihan mingguan dengan pandas dan memberi rekomendasi berbasis aturan.
 - **Deployment:** `render.yaml` hanya persiapan. Deployment publik sengaja ditunda dan belum diuji.
 

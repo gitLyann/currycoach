@@ -9,7 +9,9 @@ import requests
 from analytics.laporan import format_laporan, ringkasan_mingguan
 from analytics.rekomendasi import format_rekomendasi, rekomendasi
 from chatbot.database import (
-    ambil_latihan, cari_latihan, pengguna_perlu_pengingat, simpan_sesi_latihan,
+    ambil_latihan, ambil_riwayat, cari_latihan, daftar_sesi_telegram,
+    info_sesi_aktif, pengguna_perlu_pengingat, pilih_sesi_telegram,
+    sesi_aktif_telegram, sesi_baru_telegram, simpan_pesan, simpan_sesi_latihan,
 )
 from chatbot.handlers import format_latihan, parameter_latihan
 from config import CURRYCOACH_API_URL, DATABASE, TELEGRAM_BOT_TOKEN
@@ -21,6 +23,7 @@ API_URL = f"https://api.telegram.org/bot{TOKEN}"
 USER_AGENT = "CurryCoachTelegramBot/2.0"
 _sessions: dict[int, requests.Session] = {}
 _pending: dict[int, dict] = {}
+_konteks: dict[int, dict] = {}
 
 
 def telegram(method: str, payload: dict | None = None, timeout: int = 40):
@@ -33,7 +36,29 @@ def telegram(method: str, payload: dict | None = None, timeout: int = 40):
 
 
 def kirim(chat_id: int, text: str, **kwargs):
-    return telegram("sendMessage", {"chat_id": chat_id, "text": text, **kwargs})
+    hasil = telegram("sendMessage", {"chat_id": chat_id, "text": text, **kwargs})
+    konteks = _konteks.get(chat_id)
+    if konteks:
+        try:
+            simpan_pesan(DATABASE, konteks["session_id"], "currycoach", "bot",
+                         text, intent=konteks.get("intent"))
+        except Exception:
+            pass
+    return hasil
+
+
+def mulai_konteks(chat_id: int, user_id: int, teks: str, ident: dict,
+                  intent: str = "perintah") -> str:
+    """Pastikan user & sesi dikenal, simpan pesan user, siapkan konteks balasan."""
+    session_id = sesi_aktif_telegram(
+        DATABASE, user_id,
+        username=ident.get("username", ""),
+        first_name=ident.get("first_name", ""),
+    )
+    if teks:
+        simpan_pesan(DATABASE, session_id, "currycoach", "user", teks)
+    _konteks[chat_id] = {"session_id": session_id, "intent": intent}
+    return session_id
 
 
 def keyboard_lokasi(chat_id: int):
@@ -43,14 +68,16 @@ def keyboard_lokasi(chat_id: int):
                       "resize_keyboard": True, "one_time_keyboard": True})
 
 
-def jawab_pertanyaan(chat_id: int, user_id: int, pertanyaan: str):
+def jawab_pertanyaan(chat_id: int, user_id: int, pertanyaan: str,
+                     session_id: str | None = None):
     if not pertanyaan:
         return kirim(chat_id, "Format: /tanya pertanyaan kamu\nContoh: /tanya bagaimana cara melakukan free throw?")
     session = _sessions.setdefault(user_id, requests.Session())
     try:
         response = session.post(
             f"{APP_BASE_URL}/api/chat",
-            json={"message": pertanyaan, "theme": "currycoach"},
+            json={"message": pertanyaan, "theme": "currycoach",
+                  "session_id": session_id, "simpan_riwayat": False},
             timeout=15,
         )
         response.raise_for_status()
@@ -132,6 +159,62 @@ def kirim_laporan(chat_id: int, user_id: int):
     return kirim(chat_id, format_laporan(ringkasan) + "\n\n" + format_rekomendasi(saran))
 
 
+def info_sesi(chat_id: int, user_id: int):
+    aktif = info_sesi_aktif(DATABASE, user_id)
+    daftar = daftar_sesi_telegram(DATABASE, user_id)
+    baris = [
+        f"Sesi aktif: {aktif['label']} ({aktif['session_id'][:8]})",
+        f"Pesan di sesi ini: {aktif['jumlah_pesan']}",
+        "",
+        "Daftar sesi kamu:",
+    ]
+    for nomor, item in enumerate(daftar, 1):
+        penanda = " ← aktif" if item["aktif"] else ""
+        baris.append(f"{nomor}. {item['label']} — {item['jumlah_pesan']} pesan{penanda}")
+    baris.append("")
+    baris.append("Ganti sesi: /session <nomor>")
+    baris.append("Sesi baru: /session baru")
+    return kirim(chat_id, "\n".join(baris))
+
+
+def ganti_sesi(chat_id: int, user_id: int, argumen: str):
+    if argumen.strip().lower() in {"baru", "new", "reset"}:
+        session_id, label = sesi_baru_telegram(DATABASE, user_id)
+        if chat_id in _konteks:
+            _konteks[chat_id]["session_id"] = session_id
+        return kirim(chat_id, f"{label} dibuat dan sekarang aktif.")
+    pilihan = pilih_sesi_telegram(DATABASE, user_id, argumen.strip())
+    if pilihan is None:
+        return kirim(chat_id,
+                     "Nomor sesi tidak valid. Ketik /session untuk melihat daftar.")
+    if chat_id in _konteks:
+        _konteks[chat_id]["session_id"] = pilihan["session_id"]
+    return kirim(chat_id,
+                 f"Beralih ke {pilihan['label']} ({pilihan['session_id'][:8]}).")
+
+
+def info_user(chat_id: int, user_id: int, ident: dict):
+    aktif = info_sesi_aktif(DATABASE, user_id)
+    username = ident.get("username") or "-"
+    nama = ident.get("first_name") or "-"
+    return kirim(chat_id,
+                 f"ID Telegram: {user_id}\nUsername: @{username}\nNama: {nama}\n"
+                 f"Sesi aktif: {aktif['label']} ({aktif['session_id'][:8]})")
+
+
+def riwayat_sesi(chat_id: int, user_id: int, limit: int = 5):
+    session_id = info_sesi_aktif(DATABASE, user_id)["session_id"]
+    pesan = ambil_riwayat(DATABASE, session_id, "currycoach", limit)
+    if not pesan:
+        return kirim(chat_id, "Belum ada riwayat pada sesi ini.")
+    baris = ["Riwayat sesi ini (terbaru di bawah):"]
+    for item in pesan:
+        peran = "Kamu" if item["sender"] == "user" else "Bot"
+        teks = str(item["text"]).replace("\n", " ")[:100]
+        baris.append(f"- {peran}: {teks}")
+    return kirim(chat_id, "\n".join(baris))
+
+
 def format_lapangan(results: list[dict]) -> str:
     if not results:
         return "Belum ditemukan objek lapangan basket yang terdata di OpenStreetMap dalam radius pencarian. Data OSM mungkin belum lengkap."
@@ -148,52 +231,81 @@ def proses_update(update: dict):
     if not message:
         return
     chat_id = message["chat"]["id"]
-    user_id = message.get("from", {}).get("id", chat_id)
+    ident = message.get("from", {})
+    user_id = ident.get("id", chat_id)
     text = (message.get("text") or "").strip()
-    if text.startswith("/") and user_id in _pending:
-        _pending.pop(user_id, None)
-    if not text.startswith("/") and user_id in _pending:
-        lanjut_catat(chat_id, user_id, text)
-        return
-    if text.startswith("/start"):
-        kirim(chat_id,
-            "🏀 Selamat datang di CurryCoach!\n\n"
-            "Perintah yang tersedia:\n"
-            "/tanya <pertanyaan> — bertanya tentang basket\n"
-            "/latihan [filter] — melihat katalog latihan (contoh: /latihan pemula tanpa alat kaki)\n"
-            "/catat — mencatat sesi latihan\n"
-            "/laporan — ringkasan dan saran perkembangan\n"
-            "/lapangan — mencari lapangan basket di sekitar lokasimu\n\n"
-            "Bot ini terhubung dengan mesin chatbot CurryCoach.")
-    elif text.startswith("/tanya"):
-        jawab_pertanyaan(chat_id, user_id, text[len("/tanya"):].strip())
-    elif text.startswith("/latihan"):
-        daftar_latihan(chat_id, text[len("/latihan"):].strip())
-    elif text.startswith("/catat"):
-        mulai_catat(chat_id, user_id, text[len("/catat"):].strip())
-    elif text.startswith("/laporan"):
-        kirim_laporan(chat_id, user_id)
-    elif text.startswith("/lapangan"):
-        keyboard_lokasi(chat_id)
-    elif message.get("location"):
-        loc = message["location"]
-        try:
-            results = cari_lapangan(loc["latitude"], loc["longitude"])
-            kirim(chat_id, format_lapangan(results),
-                  reply_markup={"remove_keyboard": True}, disable_web_page_preview=True)
-        except Exception:
-            kirim(chat_id, "Pencarian lapangan sedang gagal. Coba lagi beberapa saat.")
-    elif text:
-        kirim(chat_id, "Gunakan /tanya <pertanyaan>, /latihan, /catat, /laporan, atau /lapangan.")
+    lokasi = message.get("location")
+    teks_tersimpan = text or ("[lokasi dikirim]" if lokasi else "")
+    intent = "perintah" if text.startswith("/") else ("lapangan" if lokasi else "chat")
+    session_id = mulai_konteks(chat_id, user_id, teks_tersimpan, ident, intent)
+    try:
+        if text.startswith("/") and user_id in _pending:
+            _pending.pop(user_id, None)
+        if not text.startswith("/") and user_id in _pending:
+            lanjut_catat(chat_id, user_id, text)
+            return
+        if text.startswith("/start"):
+            kirim(chat_id,
+                "🏀 Selamat datang di CurryCoach!\n\n"
+                "Perintah yang tersedia:\n"
+                "/tanya <pertanyaan> — bertanya tentang basket\n"
+                "/latihan [filter] — melihat katalog latihan (contoh: /latihan pemula tanpa alat kaki)\n"
+                "/catat — mencatat sesi latihan\n"
+                "/laporan — ringkasan dan saran perkembangan\n"
+                "/lapangan — mencari lapangan basket di sekitar lokasimu\n"
+                "/session — lihat/ganti sesi chat\n"
+                "/session baru — mulai sesi baru\n"
+                "/user — lihat identitas Telegram & sesi aktif\n"
+                "/riwayat — lihat 5 pesan terakhir di sesi ini\n\n"
+                "Bot ini terhubung dengan mesin chatbot CurryCoach.")
+        elif text.startswith("/tanya"):
+            jawab_pertanyaan(chat_id, user_id, text[len("/tanya"):].strip(), session_id)
+        elif text.startswith("/latihan"):
+            daftar_latihan(chat_id, text[len("/latihan"):].strip())
+        elif text.startswith("/catat"):
+            mulai_catat(chat_id, user_id, text[len("/catat"):].strip())
+        elif text.startswith("/laporan"):
+            kirim_laporan(chat_id, user_id)
+        elif text.startswith("/lapangan"):
+            keyboard_lokasi(chat_id)
+        elif text.startswith("/session"):
+            argumen = text[len("/session"):].strip()
+            if argumen:
+                ganti_sesi(chat_id, user_id, argumen)
+            else:
+                info_sesi(chat_id, user_id)
+        elif text.startswith("/reset"):
+            ganti_sesi(chat_id, user_id, "baru")
+        elif text.startswith("/user") or text.startswith("/id"):
+            info_user(chat_id, user_id, ident)
+        elif text.startswith("/riwayat") or text.startswith("/history"):
+            riwayat_sesi(chat_id, user_id)
+        elif lokasi:
+            try:
+                results = cari_lapangan(lokasi["latitude"], lokasi["longitude"])
+                kirim(chat_id, format_lapangan(results),
+                      reply_markup={"remove_keyboard": True}, disable_web_page_preview=True)
+            except Exception:
+                kirim(chat_id, "Pencarian lapangan sedang gagal. Coba lagi beberapa saat.")
+        elif text:
+            kirim(chat_id,
+                  "Gunakan /tanya <pertanyaan>, /latihan, /catat, /laporan, "
+                  "/lapangan, /session, /user, atau /riwayat.")
+    finally:
+        _konteks.pop(chat_id, None)
 
 
 def kirim_pengingat(hari: int = 2) -> list[int]:
     """Ingatkan pengguna yang belum mencatat latihan beberapa hari."""
     ids = pengguna_perlu_pengingat(DATABASE, hari)
     for user_id in ids:
+        pesan = ("🏀 Sudah {hari} hari sejak sesi terakhirmu. "
+                 "Luangkan 15 menit untuk latihan hari ini!").format(hari=hari)
         try:
-            kirim(user_id,
-                  f"🏀 Sudah {hari} hari sejak sesi terakhirmu. Luangkan 15 menit untuk latihan hari ini!")
+            session_id = sesi_aktif_telegram(DATABASE, user_id)
+            simpan_pesan(DATABASE, session_id, "currycoach", "bot", pesan,
+                         intent="pengingat")
+            kirim(user_id, pesan)
         except Exception:
             continue
     return ids
