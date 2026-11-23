@@ -7,6 +7,7 @@ import uuid
 from pathlib import Path
 
 from flask import Flask, jsonify, render_template, request, session
+from dotenv import load_dotenv
 from chatbot.database import (
     ambil_riwayat, hapus_riwayat, init_db, simpan_pesan, statistik,
 )
@@ -16,6 +17,7 @@ from chatbot.engine import (
 )
 
 BASE = Path(__file__).resolve().parent
+load_dotenv(BASE / ".env")
 MAKS_PANJANG = 300
 KUNCI_WAJIB = ["id", "name", "bot_name", "avatar", "color", "description",
                "greeting", "suggestions", "fallback", "intents"]

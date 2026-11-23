@@ -1,0 +1,1 @@
+"""Skrip otomatisasi CurryCoach."""

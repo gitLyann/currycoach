@@ -31,3 +31,8 @@ htmlcov/
 # Operating system files
 .DS_Store
 Thumbs.db
+
+# Generated integration data (keep only placeholders)
+data/osm_cache.json
+data/references/*.json
+data/references/*.csv

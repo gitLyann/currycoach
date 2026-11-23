@@ -1,0 +1,16 @@
+services:
+  - type: web
+    name: currycoach
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn --bind 0.0.0.0:$PORT wsgi:app
+    healthCheckPath: /api/health
+    envVars:
+      - key: APP_ENV
+        value: production
+      - key: SECRET_KEY
+        generateValue: true
+      - key: ADMIN_KEY
+        generateValue: true
+      - key: SESSION_COOKIE_SECURE
+        value: "1"

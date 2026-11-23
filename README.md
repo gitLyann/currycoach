@@ -18,6 +18,18 @@ Proyek ini dikembangkan menggunakan Python dan Flask dengan sistem pencocokan po
 - **Evaluasi Chatbot:** Menyediakan dataset dan program evaluasi klasifikasi intent.
 - **Local Production Server:** Mendukung penggunaan Waitress sebagai server WSGI.
 
+
+## Fitur Tahap Pengembangan 54%
+
+Paket ini mempertahankan chatbot web dan menambahkan fondasi integrasi scripting:
+
+- **Telegram Bot:** `/start`, `/tanya`, dan `/lapangan` melalui polling.
+- **OpenStreetMap:** pencarian objek lapangan basket berdasarkan lokasi Telegram, dengan cache 24 jam.
+- **Web Scraping:** skrip `scripts/scrape_reference.py` memeriksa `robots.txt`, memberi jeda request, dan menyimpan hasil sebagai JSON/CSV.
+- **Deployment:** `render.yaml` sebagai konfigurasi awal hosting Flask. Deployment publik tetap harus dilakukan dan diuji pada akun hosting milik pengguna.
+
+Lihat `PANDUAN-TAHAP-54.md` untuk instruksi instalasi, konfigurasi `.env`, menjalankan bot, scraping, dan deployment.
+
 ## Teknologi yang Digunakan
 
 | Teknologi | Kegunaan |
