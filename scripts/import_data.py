@@ -98,6 +98,28 @@ def baca_snapshot(path: Path = SNAPSHOT) -> list[dict]:
     return json.loads(Path(path).read_text(encoding="utf-8"))
 
 
+def jalankan_impor(database: str, reference_dir: Path = REFERENCE_DIR,
+                   snapshot: Path = SNAPSHOT, limit: int = 150,
+                   offline: bool = False) -> dict:
+    """Impor hasil scraping dan katalog wger ke database. Mengembalikan ringkasan."""
+    init_db(database)
+    referensi = muat_referensi(Path(reference_dir))
+    jumlah_referensi = simpan_referensi(database, referensi)
+
+    if offline:
+        latihan = baca_snapshot(Path(snapshot))
+    else:
+        latihan = ambil_wger(limit)
+        tulis_snapshot(latihan, Path(snapshot))
+    jumlah_latihan = simpan_latihan(database, latihan)
+    return {
+        "referensi_dibaca": len(referensi),
+        "referensi_baru": jumlah_referensi,
+        "latihan_diimpor": jumlah_latihan,
+        "database": str(database),
+    }
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Impor referensi scraping dan katalog wger.")
     parser.add_argument("--database", default=DATABASE)
@@ -107,24 +129,9 @@ def main() -> None:
     parser.add_argument("--offline", action="store_true",
                         help="Gunakan snapshot wger tanpa memanggil API.")
     args = parser.parse_args()
-
-    init_db(args.database)
-    referensi = muat_referensi(Path(args.reference_dir))
-    jumlah_referensi = simpan_referensi(args.database, referensi)
-
-    if args.offline:
-        latihan = baca_snapshot(Path(args.snapshot))
-    else:
-        latihan = ambil_wger(args.limit)
-        tulis_snapshot(latihan, Path(args.snapshot))
-    jumlah_latihan = simpan_latihan(args.database, latihan)
-
-    print(json.dumps({
-        "referensi_dibaca": len(referensi),
-        "referensi_baru": jumlah_referensi,
-        "latihan_diimpor": jumlah_latihan,
-        "database": args.database,
-    }, ensure_ascii=False, indent=2))
+    hasil = jalankan_impor(args.database, Path(args.reference_dir), Path(args.snapshot),
+                           args.limit, args.offline)
+    print(json.dumps(hasil, ensure_ascii=False, indent=2))
 
 
 if __name__ == "__main__":

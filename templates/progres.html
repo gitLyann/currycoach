@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#1D428A">
+  <title>Dashboard Latihan | {{ tema.bot_name }}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='halaman.css') }}">
+</head>
+<body>
+  <header class="bar">
+    <a class="brand" href="/">🏀 <b>{{ tema.bot_name }}</b></a>
+    <nav aria-label="Menu utama">
+      <a href="/">Chat</a>
+      <a href="/katalog">Katalog latihan</a>
+      <a class="aktif" href="#">Latihan saya</a>
+    </nav>
+  </header>
+  <main class="wrap">
+    <h1>Latihan Saya</h1>
+    <p class="lead">Perkembangan latihanmu yang dicatat lewat bot Telegram.</p>
+    <p id="status" role="status" class="lead">Memuat...</p>
+
+    <div id="isi" hidden>
+      <section class="angka" aria-label="Ringkasan 7 hari">
+        <div class="kartu"><strong id="a-sesi">0</strong><span>Sesi (7 hari)</span></div>
+        <div class="kartu"><strong id="a-menit">0</strong><span>Menit (7 hari)</span></div>
+        <div class="kartu"><strong id="a-rata">0</strong><span>Rata-rata menit per sesi</span></div>
+        <div class="kartu"><strong id="a-tembakan">0</strong><span>Tembakan masuk (7 hari)</span></div>
+      </section>
+
+      <section class="kartu" style="margin-bottom:14px">
+        <h2>Menit latihan 14 hari terakhir</h2>
+        <svg id="grafik" class="grafik" viewBox="0 0 560 190" role="img" aria-label="Grafik batang menit latihan per hari"></svg>
+      </section>
+
+      <div class="dua">
+        <section class="kartu"><h2>Porsi latihan (30 hari)</h2><div id="kategori"></div></section>
+        <section class="kartu"><h2>Saran untukmu</h2><ul id="saran" class="saran"></ul><p id="pendukung"></p></section>
+      </div>
+
+      <section class="kartu">
+        <h2>Sesi terbaru</h2>
+        <div class="tabel-bungkus">
+          <table class="responsif"><thead><tr><th>Waktu</th><th>Latihan</th><th>Kategori</th><th>Menit</th><th>Tembakan masuk</th></tr></thead>
+          <tbody id="sesi"></tbody></table>
+        </div>
+      </section>
+    </div>
+  </main>
+  <script src="{{ url_for('static', filename='progres.js') }}" defer></script>
+</body>
+</html>

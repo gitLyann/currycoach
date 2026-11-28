@@ -1,6 +1,7 @@
 """Pencarian lapangan basket menggunakan OpenStreetMap Overpass API."""
 from __future__ import annotations
 import json
+import math
 import time
 from pathlib import Path
 import requests
@@ -8,6 +9,16 @@ import requests
 OVERPASS_URL = "https://overpass-api.de/api/interpreter"
 CACHE_PATH = Path(__file__).resolve().parents[1] / "data" / "osm_cache.json"
 CACHE_SECONDS = 24 * 60 * 60
+RADIUS_BERTAHAP = (5000, 10000, 15000)   # meter; dicoba berurutan sampai ada hasil
+
+
+def hitung_jarak_km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
+    """Jarak garis lurus dua koordinat (rumus haversine), dalam kilometer."""
+    r = 6371.0
+    p1, p2 = math.radians(lat1), math.radians(lat2)
+    dp, dl = p2 - p1, math.radians(lon2 - lon1)
+    a = math.sin(dp / 2) ** 2 + math.cos(p1) * math.cos(p2) * math.sin(dl / 2) ** 2
+    return 2 * r * math.asin(math.sqrt(a))
 
 
 def cari_lapangan(lat: float, lon: float, radius: int = 5000, limit: int = 8) -> list[dict]:
@@ -59,8 +70,25 @@ out center tags;"""
                 tags.get("addr:street"), tags.get("addr:city")
             ] if x),
             "map_url": f"https://www.openstreetmap.org/{item.get('type')}/{item.get('id')}",
+            "jarak_km": round(hitung_jarak_km(float(lat), float(lon), item_lat, item_lon), 2),
         })
+    # Urutkan dari yang paling dekat SEBELUM dipotong, supaya "terdekat" benar-benar terdekat.
+    results.sort(key=lambda hasil: hasil["jarak_km"])
     results = results[:limit]
     cache[key] = {"saved_at": time.time(), "results": results}
     CACHE_PATH.write_text(json.dumps(cache, ensure_ascii=False, indent=2), encoding="utf-8")
     return results
+
+
+def cari_lapangan_bertahap(lat: float, lon: float, limit: int = 8) -> tuple[list[dict], int]:
+    """Cari dengan radius 5, 10, lalu 15 km sampai ada hasil.
+
+    Mengembalikan (hasil, radius_meter_terakhir_yang_dicoba).
+    Data OSM di banyak daerah belum lengkap, jadi radius kecil sering kosong.
+    """
+    radius = RADIUS_BERTAHAP[0]
+    for radius in RADIUS_BERTAHAP:
+        hasil = cari_lapangan(lat, lon, radius, limit)
+        if hasil:
+            return hasil, radius
+    return [], radius

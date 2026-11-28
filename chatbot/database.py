@@ -20,6 +20,13 @@ CREATE INDEX IF NOT EXISTS idx_messages_session_theme_id
 ON messages(session_id, theme, id);
 CREATE INDEX IF NOT EXISTS idx_messages_theme_intent
 ON messages(theme, intent);
+CREATE TABLE IF NOT EXISTS pola_tambahan (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    tag TEXT NOT NULL,
+    pattern TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+    UNIQUE(tag, pattern)
+);
 CREATE TABLE IF NOT EXISTS referensi (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     source_url TEXT NOT NULL,
@@ -465,3 +472,88 @@ def pilih_sesi_telegram(database: str | Path, telegram_id: int,
         )
     pilihan["aktif"] = True
     return pilihan
+
+
+# ---------------------------------------------------------------------------
+# Pengelolaan data oleh admin (CRUD latihan dan pola tambahan)
+# ---------------------------------------------------------------------------
+def daftar_latihan_admin(database: str | Path, q: str | None = None,
+                         limit: int = 50, offset: int = 0) -> dict:
+    """Daftar latihan untuk halaman admin, dengan pencarian nama dan paging."""
+    kondisi, params = "", []
+    if q:
+        kondisi = "WHERE name LIKE ? OR category LIKE ?"
+        params = [f"%{q}%", f"%{q}%"]
+    with get_connection(database) as connection:
+        total = connection.execute(
+            f"SELECT COUNT(*) FROM exercises {kondisi}", params).fetchone()[0]
+        rows = connection.execute(
+            f"""SELECT id, name, category, equipment, muscles, level, description, source
+                FROM exercises {kondisi} ORDER BY id DESC LIMIT ? OFFSET ?""",
+            params + [max(1, min(int(limit), 100)), max(0, int(offset))],
+        ).fetchall()
+    return {"total": int(total), "items": [dict(row) for row in rows]}
+
+
+def tambah_latihan(database: str | Path, data: dict) -> int:
+    """Tambah latihan buatan admin (tanpa ID eksternal, sumber 'manual')."""
+    with get_connection(database) as connection:
+        cursor = connection.execute(
+            """INSERT INTO exercises
+               (external_id, name, category, equipment, muscles, level, description, source)
+               VALUES (NULL, ?, ?, ?, ?, ?, ?, 'manual')""",
+            (data["name"], data["category"], data["equipment"], data["muscles"],
+             data["level"], data["description"]),
+        )
+        return int(cursor.lastrowid)
+
+
+def ubah_latihan(database: str | Path, exercise_id: int, data: dict) -> bool:
+    """Perbarui latihan. Mengembalikan False jika ID tidak ada."""
+    with get_connection(database) as connection:
+        cursor = connection.execute(
+            """UPDATE exercises SET name=?, category=?, equipment=?, muscles=?,
+                      level=?, description=? WHERE id=?""",
+            (data["name"], data["category"], data["equipment"], data["muscles"],
+             data["level"], data["description"], int(exercise_id)),
+        )
+        return cursor.rowcount > 0
+
+
+def hapus_latihan(database: str | Path, exercise_id: int) -> str:
+    """Hapus latihan. Hasil: 'ok', 'tidak_ada', atau 'dipakai' (sudah ada di catatan sesi)."""
+    with get_connection(database) as connection:
+        ada = connection.execute(
+            "SELECT 1 FROM exercises WHERE id = ?", (int(exercise_id),)).fetchone()
+        if not ada:
+            return "tidak_ada"
+        dipakai = connection.execute(
+            "SELECT 1 FROM workout_sessions WHERE exercise_id = ? LIMIT 1",
+            (int(exercise_id),)).fetchone()
+        if dipakai:
+            return "dipakai"
+        connection.execute("DELETE FROM exercises WHERE id = ?", (int(exercise_id),))
+        return "ok"
+
+
+def ambil_pola_tambahan(database: str | Path) -> list[dict]:
+    with get_connection(database) as connection:
+        rows = connection.execute(
+            "SELECT id, tag, pattern, created_at FROM pola_tambahan ORDER BY id DESC"
+        ).fetchall()
+    return [dict(row) for row in rows]
+
+
+def simpan_pola_tambahan(database: str | Path, tag: str, pattern: str) -> int:
+    """Simpan pola baru untuk sebuah intent. Mengembalikan ID baris baru."""
+    with get_connection(database) as connection:
+        cursor = connection.execute(
+            "INSERT INTO pola_tambahan (tag, pattern) VALUES (?, ?)", (tag, pattern))
+        return int(cursor.lastrowid)
+
+
+def hapus_pola_tambahan(database: str | Path, pola_id: int) -> bool:
+    with get_connection(database) as connection:
+        cursor = connection.execute(
+            "DELETE FROM pola_tambahan WHERE id = ?", (int(pola_id),))
+        return cursor.rowcount > 0

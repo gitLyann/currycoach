@@ -1,6 +1,8 @@
 """Analitik latihan mingguan memakai pandas."""
 from __future__ import annotations
 
+from datetime import date, timedelta
+
 import pandas as pd
 
 from chatbot.database import data_sesi_latihan
@@ -61,3 +63,27 @@ def format_laporan(ringkasan: dict) -> str:
         )
         baris.append(f"- Fokus latihan: {detail}")
     return "\n".join(baris)
+
+
+def menit_per_kategori(database: str, telegram_id: int, hari: int = 30) -> dict:
+    """Total menit latihan per kategori (untuk grafik porsi latihan)."""
+    baris = data_sesi_latihan(database, telegram_id, hari)
+    if not baris:
+        return {}
+    data = pd.DataFrame(baris)
+    data["durasi"] = pd.to_numeric(data["durasi"], errors="coerce").fillna(0)
+    hasil = data.groupby("kategori")["durasi"].sum().sort_values(ascending=False)
+    return {str(kategori): int(menit) for kategori, menit in hasil.items()}
+
+
+def deret_harian(ringkasan: dict, hari: int = 14, akhir: date | None = None) -> list[dict]:
+    """Isi hari tanpa latihan dengan 0 supaya grafik per hari tidak bolong."""
+    akhir = akhir or date.today()
+    peta = {item["tanggal"]: item for item in ringkasan["per_hari"]}
+    deret = []
+    for selisih in range(hari - 1, -1, -1):
+        tanggal = (akhir - timedelta(days=selisih)).isoformat()
+        item = peta.get(tanggal, {})
+        deret.append({"tanggal": tanggal, "menit": int(item.get("menit", 0)),
+                      "sesi": int(item.get("sesi", 0))})
+    return deret

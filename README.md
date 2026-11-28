@@ -17,6 +17,9 @@ Proyek ini dikembangkan menggunakan Python dan Flask dengan sistem pencocokan po
 - **Admin Dashboard:** Menampilkan statistik pertanyaan, tingkat pengenalan intent, grafik distribusi intent, dan pertanyaan yang belum dikenali.
 - **Evaluasi Chatbot:** Menyediakan dataset dan program evaluasi klasifikasi intent.
 - **Local Production Server:** Mendukung penggunaan Waitress sebagai server WSGI.
+- **Katalog Latihan (web):** halaman `/katalog` menampilkan latihan dari database dengan filter level, alat, dan otot.
+- **Dashboard Latihan Saya (web):** halaman `/progres` menampilkan ringkasan, grafik menit 14 hari, porsi kategori, saran, dan sesi terbaru. Dibuka lewat tautan bertoken dari perintah `/dashboard` di Telegram (berlaku 24 jam).
+- **Kelola Data (admin):** halaman `/admin/kelola` untuk menambah, mengubah, dan menghapus latihan, serta menambahkan pola chatbot dari pertanyaan yang belum dikenali, tanpa mengedit file.
 
 
 ## Fitur Integrasi Scripting
@@ -25,10 +28,11 @@ Chatbot web tetap dipakai, dengan fitur scripting yang sudah dihubungkan ke apli
 
 - **Web Scraping:** `scripts/scrape_reference.py` memeriksa `robots.txt`, memberi jeda request, dan menyimpan artikel referensi ke `data/references/` sebagai JSON/CSV.
 - **API wger:** `scripts/import_data.py` mengambil katalog latihan dan menyimpannya ke SQLite; snapshot disimpan di `data/exercises_wger.json` agar bisa diimpor ulang tanpa internet.
-- **OpenStreetMap:** pencarian lapangan basket melalui Overpass API dengan cache 24 jam di `data/osm_cache.json`.
+- **OpenStreetMap:** pencarian lapangan basket melalui Overpass API, diurutkan dari yang terdekat (jarak haversine), radius bertahap 5, 10, 15 km, cache 24 jam di `data/osm_cache.json`.
 - **TF-IDF:** `chatbot/tfidf.py` memakai korpus hasil scraping untuk menjawab pertanyaan di luar intent.
-- **Telegram Bot:** `/start`, `/tanya`, `/latihan`, `/catat`, `/laporan`, `/lapangan`, `/session`, `/user`, dan `/riwayat`, termasuk pengingat harian. Setiap Telegram ID punya sesi tersimpan, dan semua pesan bot dicatat di SQLite.
+- **Telegram Bot:** `/start`, `/tanya`, `/latihan`, `/catat`, `/laporan`, `/dashboard`, `/lapangan`, `/session`, `/user`, dan `/riwayat`, termasuk pengingat harian. Setiap Telegram ID punya sesi tersimpan, dan semua pesan bot dicatat di SQLite.
 - **Analitik:** `analytics/` merangkum latihan mingguan dengan pandas dan memberi rekomendasi berbasis aturan.
+- **Skrip otomatis:** `scripts/update_data.py` (scraping, impor wger, dan impor referensi dalam satu perintah) dan `scripts/rekap_harian.py` (rekap latihan harian seluruh pengguna ke CSV).
 - **Deployment:** `render.yaml` hanya persiapan. Deployment publik sengaja ditunda dan belum diuji.
 
 Lihat `PROGRES.md` untuk rincian yang sudah dikerjakan dan `CARA-MENJALANKAN-LOKAL.md` untuk instruksi menjalankan aplikasi.
@@ -67,6 +71,7 @@ currycoach/
 ├── analytics/
 │   ├── __init__.py
 │   ├── laporan.py
+│   ├── rekap.py
 │   └── rekomendasi.py
 │
 ├── chatbot/
@@ -74,6 +79,7 @@ currycoach/
 │   ├── database.py
 │   ├── engine.py
 │   ├── handlers.py
+│   ├── tautan.py
 │   └── tfidf.py
 │
 ├── services/
@@ -83,7 +89,9 @@ currycoach/
 ├── scripts/
 │   ├── __init__.py
 │   ├── import_data.py
-│   └── scrape_reference.py
+│   ├── rekap_harian.py
+│   ├── scrape_reference.py
+│   └── update_data.py
 │
 ├── data/
 │   ├── exercises_wger.json
@@ -96,12 +104,19 @@ currycoach/
 ├── static/
 │   ├── admin.css
 │   ├── admin.js
+│   ├── halaman.css
+│   ├── katalog.js
+│   ├── kelola.js
+│   ├── progres.js
 │   ├── script.js
 │   └── style.css
 │
 ├── templates/
 │   ├── admin.html
-│   └── index.html
+│   ├── admin_kelola.html
+│   ├── index.html
+│   ├── katalog.html
+│   └── progres.html
 │
 ├── tests/
 │   ├── __init__.py
@@ -110,6 +125,7 @@ currycoach/
 │   ├── test_data.py
 │   ├── test_engine.py
 │   ├── test_integrations.py
+│   └── test_tahap_lanjut.py
 │
 ├── PROGRES.md
 ├── DEPLOYMENT.md
@@ -166,7 +182,7 @@ Variabel yang digunakan:
 | Variabel | Fungsi |
 |---|---|
 | `APP_ENV` | Menentukan mode aplikasi |
-| `SECRET_KEY` | Mengamankan session Flask |
+| `SECRET_KEY` | Mengamankan session Flask dan token tautan dashboard (harus sama di web dan bot) |
 | `ADMIN_KEY` | Melindungi akses statistik admin |
 | `DATABASE` | Menentukan lokasi database SQLite |
 | `THRESHOLD` | Mengatur ambang batas pengenalan intent |
@@ -244,6 +260,15 @@ Waitress merupakan server aplikasi, bukan layanan hosting. Penggunaan perintah t
 | GET | `/api/history/<theme>` | Mengambil riwayat percakapan |
 | DELETE | `/api/history/<theme>` | Menghapus riwayat percakapan |
 | GET | `/api/stats/<theme>` | Mengambil statistik chatbot |
+| GET | `/api/latihan` | Katalog latihan (filter `level`, `alat`, `otot`) |
+| GET | `/katalog` | Halaman katalog latihan |
+| GET | `/progres?t=TOKEN` | Halaman dashboard latihan pribadi |
+| GET | `/api/progres?t=TOKEN` | Data dashboard pribadi (token dari bot, berlaku 24 jam) |
+| GET | `/admin/kelola` | Halaman kelola data admin |
+| GET/POST | `/api/admin/latihan` | Daftar dan tambah latihan (butuh `X-Admin-Key`) |
+| PUT/DELETE | `/api/admin/latihan/<id>` | Ubah dan hapus latihan (hapus ditolak 409 jika sudah dipakai sesi) |
+| GET/POST | `/api/admin/pola` | Daftar dan tambah pola tambahan intent |
+| DELETE | `/api/admin/pola/<id>` | Hapus pola tambahan |
 | GET | `/api/health` | Memeriksa status aplikasi |
 
 Endpoint statistik admin memerlukan header `X-Admin-Key` jika `ADMIN_KEY` telah dikonfigurasi.

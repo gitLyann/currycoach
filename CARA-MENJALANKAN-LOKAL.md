@@ -86,3 +86,34 @@ python evaluate.py
 4. Uji pencarian lapangan OpenStreetMap.
 5. Uji scraping dan impor data.
 6. Hosting publik dikerjakan paling akhir setelah semua fitur stabil.
+
+## 8. Fitur web dan skrip tambahan
+
+Halaman baru (setelah website berjalan):
+
+| Alamat | Isi |
+|---|---|
+| `http://127.0.0.1:5000/katalog` | Katalog latihan dengan filter |
+| `http://127.0.0.1:5000/admin/kelola` | Kelola latihan dan pola chatbot (isi `ADMIN_KEY` jika sudah diatur) |
+| `http://127.0.0.1:5000/progres?t=TOKEN` | Dashboard latihan pribadi. Dapatkan tautannya dengan mengetik `/dashboard` di bot Telegram |
+
+Syarat `/dashboard`: `SECRET_KEY` di `.env` dipakai bersama oleh website dan bot, dan `CURRYCOACH_API_URL` menunjuk ke alamat website
+(misalnya `http://127.0.0.1:5000`). Tautan berlaku 24 jam.
+
+Skrip otomatis:
+
+```powershell
+# Lihat rencana tanpa menjalankan
+python scripts/update_data.py --dry-run
+
+# Perbarui data tanpa internet (memakai snapshot wger)
+python scripts/update_data.py --offline
+
+# Scraping referensi baru lalu impor semuanya
+python scripts/update_data.py --url https://en.wikipedia.org/wiki/Basketball --limit 150
+
+# Rekap latihan kemarin untuk semua pengguna (CSV di data/rekap/)
+python scripts/rekap_harian.py
+python scripts/rekap_harian.py --tanggal 2026-11-20
+```
+

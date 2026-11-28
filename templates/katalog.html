@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#1D428A">
+  <title>Katalog Latihan | {{ tema.bot_name }}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='halaman.css') }}">
+</head>
+<body>
+  <header class="bar">
+    <a class="brand" href="/">🏀 <b>{{ tema.bot_name }}</b></a>
+    <nav aria-label="Menu utama">
+      <a href="/">Chat</a>
+      <a class="aktif" href="/katalog">Katalog latihan</a>
+      <a href="/admin">Admin</a>
+    </nav>
+  </header>
+  <main class="wrap">
+    <h1>Katalog Latihan</h1>
+    <p class="lead">Pilih latihan sesuai levelmu. Data diambil dari database CurryCoach.</p>
+
+    <form id="filter" class="filter" aria-label="Filter latihan">
+      <label>Level
+        <select id="level"><option value="">Semua</option><option value="pemula">Pemula</option>
+          <option value="menengah">Menengah</option><option value="lanjutan">Lanjutan</option></select></label>
+      <label>Alat
+        <select id="alat"><option value="">Semua</option><option value="tanpa alat">Tanpa alat</option></select></label>
+      <label>Otot
+        <select id="otot"><option value="">Semua</option><option value="Legs">Kaki</option><option value="Chest">Dada</option>
+          <option value="Abs">Perut</option><option value="Arms">Tangan</option><option value="Back">Punggung</option>
+          <option value="Shoulders">Bahu</option><option value="Glutes">Pantat</option></select></label>
+    </form>
+    <p id="info" role="status" class="lead"></p>
+    <div id="daftar" class="grid"></div>
+    <p class="note">Sumber data latihan: wger.de. Isinya panduan umum untuk pemula, bukan saran medis.
+       Hentikan latihan jika terasa nyeri.</p>
+  </main>
+  <script src="{{ url_for('static', filename='katalog.js') }}" defer></script>
+</body>
+</html>

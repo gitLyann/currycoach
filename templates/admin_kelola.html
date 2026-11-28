@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#1D428A">
+  <title>Kelola Data | {{ tema.bot_name }}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='halaman.css') }}">
+</head>
+<body data-tema="{{ tema.id }}">
+  <header class="bar">
+    <a class="brand" href="/">🏀 <b>{{ tema.bot_name }}</b></a>
+    <nav aria-label="Menu admin">
+      <a href="/admin">Dashboard admin</a>
+      <a class="aktif" href="/admin/kelola">Kelola data</a>
+      <a href="/katalog">Katalog</a>
+    </nav>
+  </header>
+  <main class="wrap">
+    <h1>Kelola Data</h1>
+    <p class="lead">Ubah katalog latihan dan pengetahuan chatbot tanpa mengedit file. Perubahan langsung berlaku.</p>
+
+    <section class="panel-kelola">
+      <h2>Kunci admin</h2>
+      <div class="aksi">
+        <label for="kunci" style="flex:1 1 260px">ADMIN_KEY (kosongkan jika mode lokal tanpa kunci)
+          <input id="kunci" type="password" autocomplete="off"></label>
+        <button id="muat" type="button">Muat data</button>
+      </div>
+      <p id="status-umum" class="status" role="status"></p>
+    </section>
+
+    <section class="panel-kelola" id="bagian-pola" hidden>
+      <h2>Pengetahuan chatbot: pola tambahan</h2>
+      <p class="lead">Pola dari pertanyaan yang belum dikenali bisa ditambahkan ke sebuah intent. Pola dari <code>currycoach.json</code> tidak diubah.</p>
+
+      <h3>Pertanyaan belum dikenali</h3>
+      <div class="tabel-bungkus"><table class="responsif">
+        <thead><tr><th>Pertanyaan</th><th>Frekuensi</th><th>Jadikan pola untuk intent</th></tr></thead>
+        <tbody id="tak-dikenal"></tbody></table></div>
+
+      <h3 style="margin-top:18px">Tambah pola manual</h3>
+      <form id="form-pola" class="form-grid">
+        <label>Intent
+          <select id="pola-tag" required>{% for t in tag_intent %}<option value="{{ t }}">{{ t }}</option>{% endfor %}</select></label>
+        <label style="flex:2 1 260px">Pola (kalimat atau kata kunci)
+          <input id="pola-teks" type="text" maxlength="100" required></label>
+        <div class="aksi" style="align-self:flex-end"><button type="submit">Tambah pola</button></div>
+      </form>
+      <p id="status-pola" class="status" role="status"></p>
+
+      <h3>Pola tambahan tersimpan</h3>
+      <div class="tabel-bungkus"><table class="responsif">
+        <thead><tr><th>Intent</th><th>Pola</th><th>Aksi</th></tr></thead>
+        <tbody id="daftar-pola"></tbody></table></div>
+    </section>
+
+    <section class="panel-kelola" id="bagian-latihan" hidden>
+      <h2>Katalog latihan</h2>
+      <form id="form-latihan" class="form-grid">
+        <input type="hidden" id="l-id">
+        <label style="flex:2 1 240px">Nama latihan<input id="l-name" type="text" maxlength="100" required></label>
+        <label>Kategori<input id="l-category" type="text" maxlength="50" required placeholder="mis. Legs"></label>
+        <label>Level
+          <select id="l-level"><option value="pemula">pemula</option><option value="menengah">menengah</option><option value="lanjutan">lanjutan</option></select></label>
+        <label>Alat<input id="l-equipment" type="text" maxlength="50" placeholder="mis. tanpa alat"></label>
+        <label>Otot<input id="l-muscles" type="text" maxlength="100" placeholder="mis. Quads"></label>
+        <label class="lebar">Deskripsi<textarea id="l-description" maxlength="1000"></textarea></label>
+        <div class="aksi"><button type="submit" id="l-simpan">Tambah latihan</button>
+          <button type="button" class="sekunder" id="l-batal" hidden>Batal ubah</button></div>
+      </form>
+      <p id="status-latihan" class="status" role="status"></p>
+
+      <div class="aksi" style="margin-bottom:10px">
+        <label for="cari" style="flex:1 1 220px">Cari latihan<input id="cari" type="text" placeholder="nama atau kategori"></label>
+      </div>
+      <div class="tabel-bungkus"><table class="responsif">
+        <thead><tr><th>Nama</th><th>Kategori</th><th>Level</th><th>Alat</th><th>Sumber</th><th>Aksi</th></tr></thead>
+        <tbody id="daftar-latihan"></tbody></table></div>
+      <div class="aksi" style="margin-top:10px">
+        <button type="button" class="sekunder" id="sebelumnya">Sebelumnya</button>
+        <span id="halaman"></span>
+        <button type="button" class="sekunder" id="berikutnya">Berikutnya</button>
+      </div>
+    </section>
+  </main>
+  <script src="{{ url_for('static', filename='kelola.js') }}" defer></script>
+</body>
+</html>

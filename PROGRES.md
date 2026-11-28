@@ -1,6 +1,6 @@
 # PROGRES CURRYCOACH 2.0
 
-Catatan ini ditulis pada 23 November 2026. Deployment publik sengaja ditunda, jadi tidak ada URL produksi yang diklaim sudah aktif.
+Catatan ini diperbarui pada 26 November 2026. Deployment publik sengaja ditunda, jadi tidak ada URL produksi yang diklaim sudah aktif.
 
 ## 1. Keadaan awal sebelum pekerjaan ini
 
@@ -98,20 +98,28 @@ Catatan ini ditulis pada 23 November 2026. Deployment publik sengaja ditunda, ja
   - `.venv\Scripts\python.exe -m pytest -q`
   - `.venv\Scripts\python.exe evaluate.py`
 
+### 2.7 Tahap lanjut: tampilan web, kelola data, dan skrip otomatis
+
+- Halaman `/katalog`: katalog latihan dengan filter level, alat, dan otot (data dari database).
+- Halaman `/progres`: dashboard latihan pribadi (kartu ringkasan, grafik SVG 14 hari, porsi kategori, saran, sesi terbaru). Dibuka lewat tautan bertoken dari perintah bot `/dashboard`. Token ditandatangani dengan `SECRET_KEY` dan berlaku 24 jam (`chatbot/tautan.py`).
+- Halaman `/admin/kelola`: CRUD latihan (validasi, hapus ditolak 409 jika sudah dipakai sesi) dan pola tambahan chatbot dari pertanyaan yang belum dikenali (tabel `pola_tambahan`, berlaku langsung tanpa restart).
+- OpenStreetMap: hasil sekarang diurutkan dari yang terdekat (jarak haversine) dan radius diperbesar bertahap 5, 10, 15 km.
+- `scripts/update_data.py` (scraping, impor referensi, dan impor wger dalam satu perintah; ada `--dry-run` dan `--offline`) dan `scripts/rekap_harian.py` (rekap harian ke CSV).
+- Pengujian: 248 kasus lolos (`tests/test_tahap_lanjut.py` menambah 46 kasus). Evaluasi intent tetap 37/37.
+
 ## 3. Yang belum dikerjakan
 
-1. Deployment publik — sengaja ditunda. `render.yaml` dan `DEPLOYMENT.md` hanya persiapan.
-2. Upload/commit perubahan — semua perubahan di atas masih berupa file kerja, belum di-commit.
-3. Tab web "Latihan Saya" dan "Katalog" — API sudah ada, tampilan belum.
-4. Admin CRUD untuk intent dan latihan.
+1. Deployment publik: sengaja ditunda sampai tanggalnya ditentukan. `render.yaml` dan `DEPLOYMENT.md` hanya persiapan.
+2. Commit perubahan ke Git: semua perubahan masih berupa file kerja.
+3. Pengujian langsung bot Telegram: database lokal belum memuat pengguna Telegram, jadi alur dengan token asli belum terbukti. Uji manual `/start`, `/tanya`, `/catat`, `/laporan`, `/dashboard`, dan kirim lokasi.
+4. Cakupan OpenStreetMap: pencarian di sekitar koordinat Yogyakarta sebelumnya mengembalikan 0 lapangan. Data OSM di sana mungkin belum lengkap. Uji dengan beberapa lokasi dan siapkan penjelasan untuk dosen.
 5. `TEMPLATE-LAPORAN-AKHIR.md` masih berisi placeholder `[ISI ...]`.
 6. Tabel di dokumen Final Description Web App masih berupa gambar dan perlu diubah ke tabel teks.
-7. Final Description Scripting perlu menyebut wger dan pengingat, serta meluruskan bahwa catatan harian bukan scraping.
-8. Token Telegram di `.env` sudah ada, tetapi harus diuji langsung dengan BotFather dan perangkat Telegram. Jangan pernah membagikan nilainya.
-9. Perbaikan logika bot Telegram lanjutan — menunggu daftar perilaku yang dianggap kurang tepat dari user. Fondasi sesi, identitas, dan penyimpanan pesan sudah siap lebih dulu.
+7. Final Description Scripting perlu menyebut wger, pengingat, `/dashboard`, `update_data.py`, dan meluruskan bahwa catatan harian bukan scraping.
+8. Penjadwalan otomatis `rekap_harian.py` dan `kirim_pengingat` belum dipasang di Task Scheduler.
 
 ## 4. Catatan sebelum mengumpulkan
 
 - Jangan memasukkan `.env`, `.venv`, `instance/*.sqlite3`, dan `data/osm_cache.json`.
 - Hasil scraping di `data/references/` sengaja tidak lagi diabaikan Git agar bisa dijadikan bukti.
-- Angka persentase laporan lama perlu dihitung ulang karena sekarang sudah ada bukti scraping, API, bot, TF-IDF, dan analitik; hanya deployment yang belum.
+- Estimasi kemajuan terbaru sekitar 92 dari 100 poin; sisanya hanya deployment publik.

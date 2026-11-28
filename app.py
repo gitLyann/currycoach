@@ -9,15 +9,21 @@ from pathlib import Path
 from flask import Flask, jsonify, render_template, request, session
 from dotenv import load_dotenv
 from chatbot.database import (
-    ambil_riwayat, cari_latihan, hapus_riwayat, init_db, simpan_pesan, statistik,
+    ambil_pola_tambahan, ambil_riwayat, ambil_sesi_latihan, cari_latihan,
+    daftar_latihan_admin, hapus_latihan, hapus_pola_tambahan, hapus_riwayat,
+    init_db, simpan_pesan, simpan_pola_tambahan, statistik, tambah_latihan,
+    ubah_latihan,
 )
 from chatbot.engine import (
     DEFAULT_THRESHOLD, cari_intent as _cari_intent, cari_intent_detail,
-    muat_tema, normalisasi,
+    muat_tema, normalisasi, tokenisasi,
 )
 from chatbot.handlers import jawaban_latihan
+from chatbot.tautan import baca_token
 from chatbot.tfidf import muat_mesin_dari_database
-from analytics.laporan import format_laporan, ringkasan_mingguan
+from analytics.laporan import (
+    deret_harian, format_laporan, menit_per_kategori, ringkasan_mingguan,
+)
 from analytics.rekomendasi import format_rekomendasi, rekomendasi
 
 BASE = Path(__file__).resolve().parent
@@ -25,6 +31,35 @@ load_dotenv(BASE / ".env")
 MAKS_PANJANG = 300
 KUNCI_WAJIB = ["id", "name", "bot_name", "avatar", "color", "description",
                "greeting", "suggestions", "fallback", "intents"]
+
+
+LEVEL_LATIHAN = ("pemula", "menengah", "lanjutan")
+BATAS_TEKS = {"name": 100, "category": 50, "equipment": 50, "muscles": 100,
+              "description": 1000}
+
+
+def validasi_latihan(data) -> tuple[dict | None, list[str]]:
+    """Periksa dan rapikan isian latihan dari admin. Mengembalikan (data, daftar_error)."""
+    if not isinstance(data, dict):
+        return None, ["Body harus berupa JSON object."]
+    bersih, error = {}, []
+    for kolom, batas in BATAS_TEKS.items():
+        nilai = data.get(kolom, "")
+        if not isinstance(nilai, str):
+            error.append(f"{kolom} harus berupa teks.")
+            continue
+        nilai = nilai.strip()
+        if len(nilai) > batas:
+            error.append(f"{kolom} maksimal {batas} karakter.")
+        bersih[kolom] = nilai
+    for kolom in ("name", "category"):
+        if not bersih.get(kolom):
+            error.append(f"{kolom} wajib diisi.")
+    level = str(data.get("level", "")).strip().lower()
+    if level not in LEVEL_LATIHAN:
+        error.append("level harus salah satu dari: " + ", ".join(LEVEL_LATIHAN) + ".")
+    bersih["level"] = level
+    return (None, error) if error else (bersih, [])
 
 
 def validasi_tema(tema: dict) -> list:
@@ -114,11 +149,22 @@ def create_app(test_config: dict | None = None) -> Flask:
     def isi_placeholder(teks: str) -> str:
         return teks.replace("{nama_bot}", tema["bot_name"])
 
+    def intents_aktif() -> list[dict]:
+        """Intent dari currycoach.json digabung dengan pola tambahan buatan admin (database)."""
+        tambahan = ambil_pola_tambahan(app.config["DATABASE"])
+        if not tambahan:
+            return intents
+        peta: dict[str, list[str]] = {}
+        for baris in tambahan:
+            peta.setdefault(baris["tag"], []).append(baris["pattern"])
+        return [dict(item, patterns=list(item["patterns"]) + peta.get(item["tag"], []))
+                for item in intents]
+
     def proses_pesan(pesan: str, explain: bool = False,
                      sid_override: str | None = None,
                      simpan_riwayat: bool = True) -> dict:
         terbaik, kandidat = cari_intent_detail(
-            pesan, intents, float(app.config["THRESHOLD"])
+            pesan, intents_aktif(), float(app.config["THRESHOLD"])
         )
         referensi_terbaik = None
         if terbaik is None:
@@ -299,6 +345,124 @@ def create_app(test_config: dict | None = None) -> Flask:
             ringkasan=ringkasan, saran=saran,
             teks=format_laporan(ringkasan) + "\n" + format_rekomendasi(saran),
         )
+
+    # ------------------------------------------------------------------
+    # Halaman katalog latihan dan dashboard latihan pribadi
+    # ------------------------------------------------------------------
+    @app.get("/katalog")
+    def halaman_katalog():
+        return render_template("katalog.html", tema=tema)
+
+    @app.get("/progres")
+    def halaman_progres():
+        # Token diperiksa oleh /api/progres; halaman hanya kerangka tampilan.
+        return render_template("progres.html", tema=tema)
+
+    @app.get("/api/progres")
+    def api_progres():
+        telegram_id = baca_token(app.config["SECRET_KEY"], request.args.get("t", ""))
+        if telegram_id is None:
+            return jsonify(error="Tautan tidak valid atau sudah kedaluwarsa. "
+                                 "Ketik /dashboard di Telegram untuk membuat yang baru."), 401
+        db = app.config["DATABASE"]
+        ringkasan_7 = ringkasan_mingguan(db, telegram_id, 7)
+        ringkasan_30 = ringkasan_mingguan(db, telegram_id, 30)
+        return jsonify(
+            ringkasan_7=ringkasan_7,
+            ringkasan_30=ringkasan_30,
+            harian=deret_harian(ringkasan_30, 14),
+            kategori=menit_per_kategori(db, telegram_id, 30),
+            sesi_terbaru=ambil_sesi_latihan(db, telegram_id, 8),
+            saran=rekomendasi(db, telegram_id, ringkasan_7),
+        )
+
+    # ------------------------------------------------------------------
+    # Pengelolaan data oleh admin: latihan dan pola tambahan
+    # ------------------------------------------------------------------
+    @app.get("/admin/kelola")
+    def halaman_kelola():
+        return render_template("admin_kelola.html", tema=tema,
+                               tag_intent=[i["tag"] for i in intents])
+
+    @app.get("/api/admin/latihan")
+    def admin_daftar_latihan():
+        if not admin_diizinkan():
+            return jsonify(error="Akses admin ditolak."), 401
+        try:
+            limit = int(request.args.get("limit", 20))
+            offset = int(request.args.get("offset", 0))
+        except ValueError:
+            return jsonify(error="limit dan offset harus berupa angka."), 400
+        return jsonify(**daftar_latihan_admin(
+            app.config["DATABASE"], request.args.get("q", "").strip() or None, limit, offset))
+
+    @app.post("/api/admin/latihan")
+    def admin_tambah_latihan():
+        if not admin_diizinkan():
+            return jsonify(error="Akses admin ditolak."), 401
+        data, error = validasi_latihan(request.get_json(silent=True))
+        if error:
+            return jsonify(error="Data tidak valid.", detail=error), 400
+        return jsonify(id=tambah_latihan(app.config["DATABASE"], data)), 201
+
+    @app.put("/api/admin/latihan/<int:exercise_id>")
+    def admin_ubah_latihan(exercise_id):
+        if not admin_diizinkan():
+            return jsonify(error="Akses admin ditolak."), 401
+        data, error = validasi_latihan(request.get_json(silent=True))
+        if error:
+            return jsonify(error="Data tidak valid.", detail=error), 400
+        if not ubah_latihan(app.config["DATABASE"], exercise_id, data):
+            return jsonify(error="Latihan tidak ditemukan."), 404
+        return jsonify(id=exercise_id)
+
+    @app.delete("/api/admin/latihan/<int:exercise_id>")
+    def admin_hapus_latihan(exercise_id):
+        if not admin_diizinkan():
+            return jsonify(error="Akses admin ditolak."), 401
+        hasil = hapus_latihan(app.config["DATABASE"], exercise_id)
+        if hasil == "tidak_ada":
+            return jsonify(error="Latihan tidak ditemukan."), 404
+        if hasil == "dipakai":
+            return jsonify(error="Latihan sudah dipakai di catatan sesi pengguna, "
+                                 "jadi tidak dapat dihapus."), 409
+        return jsonify(id=exercise_id)
+
+    @app.get("/api/admin/pola")
+    def admin_daftar_pola():
+        if not admin_diizinkan():
+            return jsonify(error="Akses admin ditolak."), 401
+        return jsonify(pola=ambil_pola_tambahan(app.config["DATABASE"]),
+                       tag=[i["tag"] for i in intents])
+
+    @app.post("/api/admin/pola")
+    def admin_tambah_pola():
+        if not admin_diizinkan():
+            return jsonify(error="Akses admin ditolak."), 401
+        data = request.get_json(silent=True)
+        if not isinstance(data, dict):
+            return jsonify(error="Body harus berupa JSON object."), 400
+        tag = str(data.get("tag", "")).strip()
+        pola = str(data.get("pattern", "")).strip()
+        if tag not in {i["tag"] for i in intents}:
+            return jsonify(error="Intent tidak ditemukan."), 404
+        if not pola or len(pola) > 100:
+            return jsonify(error="Pola wajib diisi dan maksimal 100 karakter."), 400
+        if not tokenisasi(pola):          # hanya kata henti (yang, di, ke, ...): tidak akan pernah cocok
+            return jsonify(error="Pola tidak mengandung kata yang bermakna."), 400
+        baku = normalisasi(pola)
+        for item in intents_aktif():
+            if any(normalisasi(p) == baku for p in item["patterns"]):
+                return jsonify(error=f"Pola sudah ada di intent '{item['tag']}'."), 409
+        return jsonify(id=simpan_pola_tambahan(app.config["DATABASE"], tag, pola)), 201
+
+    @app.delete("/api/admin/pola/<int:pola_id>")
+    def admin_hapus_pola(pola_id):
+        if not admin_diizinkan():
+            return jsonify(error="Akses admin ditolak."), 401
+        if not hapus_pola_tambahan(app.config["DATABASE"], pola_id):
+            return jsonify(error="Pola tidak ditemukan."), 404
+        return jsonify(id=pola_id)
 
     @app.get("/api/health")
     def health():

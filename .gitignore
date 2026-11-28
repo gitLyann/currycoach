@@ -34,3 +34,6 @@ Thumbs.db
 
 # Generated integration data
 data/osm_cache.json
+
+# Hasil rekap harian
+data/rekap/

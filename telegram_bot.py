@@ -14,8 +14,9 @@ from chatbot.database import (
     sesi_aktif_telegram, sesi_baru_telegram, simpan_pesan, simpan_sesi_latihan,
 )
 from chatbot.handlers import format_latihan, parameter_latihan
-from config import CURRYCOACH_API_URL, DATABASE, TELEGRAM_BOT_TOKEN
-from services.osm import cari_lapangan
+from chatbot.tautan import MASA_BERLAKU_DETIK, buat_token
+from config import CURRYCOACH_API_URL, DATABASE, SECRET_KEY, TELEGRAM_BOT_TOKEN
+from services.osm import cari_lapangan_bertahap
 
 TOKEN = TELEGRAM_BOT_TOKEN
 APP_BASE_URL = CURRYCOACH_API_URL
@@ -159,6 +160,17 @@ def kirim_laporan(chat_id: int, user_id: int):
     return kirim(chat_id, format_laporan(ringkasan) + "\n\n" + format_rekomendasi(saran))
 
 
+def kirim_dashboard(chat_id: int, user_id: int):
+    """Kirim tautan dashboard latihan pribadi (berlaku 24 jam)."""
+    token = buat_token(SECRET_KEY, user_id)
+    jam = MASA_BERLAKU_DETIK // 3600
+    return kirim(chat_id,
+                 f"📊 Dashboard latihanmu (berlaku {jam} jam):\n"
+                 f"{APP_BASE_URL}/progres?t={token}\n\n"
+                 "Tautan ini khusus untukmu, jangan dibagikan.",
+                 disable_web_page_preview=True)
+
+
 def info_sesi(chat_id: int, user_id: int):
     aktif = info_sesi_aktif(DATABASE, user_id)
     daftar = daftar_sesi_telegram(DATABASE, user_id)
@@ -215,13 +227,16 @@ def riwayat_sesi(chat_id: int, user_id: int, limit: int = 5):
     return kirim(chat_id, "\n".join(baris))
 
 
-def format_lapangan(results: list[dict]) -> str:
+def format_lapangan(results: list[dict], radius: int = 5000) -> str:
+    km = radius // 1000
     if not results:
-        return "Belum ditemukan objek lapangan basket yang terdata di OpenStreetMap dalam radius pencarian. Data OSM mungkin belum lengkap."
-    lines = ["🏀 Lapangan basket terdekat yang ditemukan:"]
+        return (f"Belum ada lapangan basket yang tercatat di OpenStreetMap dalam radius {km} km. "
+                "Data OSM di daerahmu mungkin belum lengkap. Kamu bisa membantu menambahkannya di openstreetmap.org.")
+    lines = [f"🏀 Lapangan basket terdekat (radius pencarian {km} km):"]
     for i, item in enumerate(results, 1):
+        jarak = f" · {item['jarak_km']} km" if item.get("jarak_km") is not None else ""
         address = f"\n   Lokasi: {item['address']}" if item.get("address") else ""
-        lines.append(f"{i}. {item['name']}{address}\n   {item['map_url']}")
+        lines.append(f"{i}. {item['name']}{jarak}{address}\n   {item['map_url']}")
     lines.append("\nData berasal dari OpenStreetMap; kelengkapan dan kondisi lapangan perlu diverifikasi.")
     return "\n\n".join(lines)
 
@@ -252,6 +267,7 @@ def proses_update(update: dict):
                 "/latihan [filter] — melihat katalog latihan (contoh: /latihan pemula tanpa alat kaki)\n"
                 "/catat — mencatat sesi latihan\n"
                 "/laporan — ringkasan dan saran perkembangan\n"
+                "/dashboard — tautan dashboard latihan pribadi di web\n"
                 "/lapangan — mencari lapangan basket di sekitar lokasimu\n"
                 "/session — lihat/ganti sesi chat\n"
                 "/session baru — mulai sesi baru\n"
@@ -266,6 +282,8 @@ def proses_update(update: dict):
             mulai_catat(chat_id, user_id, text[len("/catat"):].strip())
         elif text.startswith("/laporan"):
             kirim_laporan(chat_id, user_id)
+        elif text.startswith("/dashboard"):
+            kirim_dashboard(chat_id, user_id)
         elif text.startswith("/lapangan"):
             keyboard_lokasi(chat_id)
         elif text.startswith("/session"):
@@ -282,14 +300,14 @@ def proses_update(update: dict):
             riwayat_sesi(chat_id, user_id)
         elif lokasi:
             try:
-                results = cari_lapangan(lokasi["latitude"], lokasi["longitude"])
-                kirim(chat_id, format_lapangan(results),
+                results, radius = cari_lapangan_bertahap(lokasi["latitude"], lokasi["longitude"])
+                kirim(chat_id, format_lapangan(results, radius),
                       reply_markup={"remove_keyboard": True}, disable_web_page_preview=True)
             except Exception:
                 kirim(chat_id, "Pencarian lapangan sedang gagal. Coba lagi beberapa saat.")
         elif text:
             kirim(chat_id,
-                  "Gunakan /tanya <pertanyaan>, /latihan, /catat, /laporan, "
+                  "Gunakan /tanya <pertanyaan>, /latihan, /catat, /laporan, /dashboard, "
                   "/lapangan, /session, /user, atau /riwayat.")
     finally:
         _konteks.pop(chat_id, None)

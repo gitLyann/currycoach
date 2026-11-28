@@ -15,3 +15,4 @@ WGER_API_URL = "https://wger.de/api/v2/exerciseinfo/"
 USER_AGENT = "CurryCoachEducationalBot/1.0 (+student project; respectful crawler)"
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "").strip()
 CURRYCOACH_API_URL = os.getenv("CURRYCOACH_API_URL", "http://127.0.0.1:5000").rstrip("/")
+SECRET_KEY = os.getenv("SECRET_KEY", "dev-only-change-this-secret")
